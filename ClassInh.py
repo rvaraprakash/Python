@@ -72,3 +72,25 @@ s2 = student(50,60)
 s3 = s1 + s2 ### intenrally calls __add__ method
 print (s3.m1)
 print(s3) ### Internally calls __str__ method
+
+
+#################
+## Exception handling
+a,b=10,0
+try:
+    print("Calculating..")
+    a/b
+
+except ZeroDivisionError as e:
+    print("Division error", e)
+    
+except ValueError as e:
+    print("Invalid value error", e)
+        
+except Excpetion as e:
+    print("Unknown error", e)
+    
+finally:
+    print("All resource closed.."
+    
+    
