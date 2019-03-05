@@ -2,8 +2,9 @@ import numpy as np
 
 import pandas as pd
 from datetime import datetime
+import re
 
-filename="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BL_RATED.csv"
+filename = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BL_RATED.csv"
 # df = pd.read_csv('C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BL_RATED.csv')
 df = pd.read_csv(filename)
 
@@ -21,9 +22,45 @@ PRIMDEV_DIV = ['NYC']
 CHRG_KEYS = ['DIVISION_CODE', 'ACCOUNT_TYPE', 'SERVICE_TYPE', 'SERVICE_TYPE', 'AR_ROUNDED_PRICE', 'FINANCE_ENTITY']
 ACC_SERV_KEYS = ['ACCOUNT_TYPE', 'SERVICE_TYPE']
 
+
 #### Create file
-def createFile_ICOMS(*args):
-    print(args)
+def createFile_ICOMS(row):
+    file = row['FINANCE_ENTITY'] + row['fileTime']
+    if (row['CREDIT_DEBIT_IND'] == 'D'):
+        file = file + "0000"
+    else:
+        file = file + "0001"
+
+    if (row['SERVICE_TYPE'] == 'R'):
+        file = file + ".RESP"
+    elif (row['SERVICE_TYPE'] == 'B'):
+        file = file + ".BCPP"
+    elif (row['SERVICE_TYPE'] == 'T'):
+        file = file + ".PRIP"
+
+    if (row['TAX_INCLUSIVE_IND'] == '0'):
+        file = file + "taxed"
+    else:
+        file = file + "untaxed"
+
+    if re.findall(r"DA|CC|OA[1-6]", row['CALL_TYPE']):
+        file = file + "1"
+    if re.findall(r"LD4|LD5|LD6|INT|TERR[0-99]", row['CALL_TYPE']):
+        file = file + "2"
+    if re.findall(r"LOC1|LD1", row['CALL_TYPE']):
+        file = file + "3"
+    if re.findall(r"LOCT2|LD2|LD3|LD7", row['CALL_TYPE']):
+        file = file + "4"
+    if re.findall(r"LD4|LD5|LD6|INT|TERR[0-99]", row['CALL_TYPE']):
+        file = file + "5"
+    if re.findall(r"OA8", row['CALL_TYPE']) and re.findall(r"LOC1|LOCT1|LD1", row['CALL_COMP_CALL_TYPE']):
+        file = file + "6"
+    if re.findall(r"OA8", row['CALL_TYPE']) and re.findall(r"LOC2|LOCT2|LD2|LD3|LD7", row['CALL_COMP_CALL_TYPE']):
+        file = file + "7"
+    if re.findall(r"OA8", row['CALL_TYPE']) and re.findall(r"LD4", row['CALL_COMP_CALL_TYPE']):
+        file = file + "8"
+    file+=".txt"
+    print(file)
 
 
 #### PRI Accounts
@@ -32,12 +69,14 @@ priAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(PRI_DIV) & clean_df['ACCOUNT
 if (len(priAcc_df)):
     print("PRI Accounts")
     print(priAcc_df[CHRG_KEYS])
-    row_df = priAcc_df.filter(['FINANCE_ENTITY','CREDIT_DEBIT_IND','SERVICE_TYPE','USAGE_CYCLE_END'])
+    row_df = priAcc_df.filter(
+        ['FINANCE_ENTITY', 'CREDIT_DEBIT_IND', 'SERVICE_TYPE', 'CALL_TYPE', 'CALL_COMP_CALL_TYPE', 'TAX_INCLUSIVE_IND',
+         'USAGE_CYCLE_END'])
 
     row_df['fileTime'] = pd.to_datetime(row_df['USAGE_CYCLE_END'])
     row_df['fileTime'] = row_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     row_df.drop_duplicates(inplace=True)
-    
+    row_df.apply(createFile_ICOMS, axis=1)
     print(row_df)
 
 """
