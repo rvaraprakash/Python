@@ -1,7 +1,10 @@
 import numpy as np
+
 import pandas as pd
 from datetime import datetime
 import re
+import xlrd
+
 
 BL_RATED_filename = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BL_RATED.csv"
 df = pd.read_csv(BL_RATED_filename)
@@ -195,7 +198,7 @@ if (len(primdetAcc_df)):
     print("PrimdetNYC_Accounts")
     primdetAcc_df = primdetAcc_df.filter(ICOMS_KEYS)
     primdetAcc_df['fileTime'] = pd.to_datetime(primdetAcc_df['USAGE_CYCLE_END'])
-    primdetAcc_df['fileTime'] = primsumAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
+    primdetAcc_df['fileTime'] = primdetAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     primdetAcc_df['CHG_FILENAME'] = primdetAcc_df.apply(createFile_CSG, axis=1)
     primdetAcc_df.drop(['fileTime'], axis=1, inplace=True)
     print(primdetAcc_df)
