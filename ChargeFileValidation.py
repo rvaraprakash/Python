@@ -6,8 +6,12 @@ import re
 import xlrd
 from openpyxl import Workbook
 
-outfile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\Output_ChargeFileValidation.xlsx"
-BL_RATED_filename = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BL_RATED.csv"
+
+
+
+outfile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\Output_ChargeFileValidation_BHN.xlsx"
+#BL_RATED_filename = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BL_RATED.csv"
+BL_RATED_filename = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BHN_CHG\BL_RATED.csv"
 df = pd.read_csv(BL_RATED_filename)
 
 BillingInfoFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BillingSystemInfo.xlsx"
@@ -128,6 +132,17 @@ def createFile_CSG(row):
     filename += "001.dat"
     return filename
 
+#### build BHN charge filename
+def createFile_BHN(row):
+    filename = ""
+    if (row['SERVICE_TYPE'] == 'R'):
+        filename = filename + "RES"
+    elif (row['SERVICE_TYPE'] == 'B') or (row['SERVICE_TYPE'] == 'T'):
+        filename = filename + "BUS"
+
+    filename = filename + row['fileTime']
+    filename += "xxxx.txt"
+    return filename
 
 #### PRI Accounts
 priAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(PRI_DIV) & clean_df['ACCOUNT_TYPE'].isin(['C', 'T'])
@@ -234,24 +249,24 @@ if (len(bhnResAcc_df)):
     bhnResAcc_df = bhnResAcc_df.filter(ICOMS_KEYS)
     bhnResAcc_df['fileTime'] = pd.to_datetime(bhnResAcc_df['USAGE_CYCLE_END'])
     bhnResAcc_df['fileTime'] = bhnResAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
-    bhnResAcc_df['CHG_FILENAME'] = bhnResAcc_df.apply(createFile_ICOMS, axis=1)
+    bhnResAcc_df['CHG_FILENAME'] = bhnResAcc_df.apply(createFile_BHN, axis=1)
     bhnResAcc_df.drop(['fileTime'], axis=1, inplace=True)
     print(bhnResAcc_df)
 
 #### BHN_COM_Accounts
-bhnComAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(['BHN']) & clean_df['ACCOUNT_TYPE'].isin(['R'])
-                        & clean_df['SERVICE_TYPE'].isin(['R'])]
+bhnComAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(['BHN']) & clean_df['ACCOUNT_TYPE'].isin(['C','T'])
+                        & clean_df['SERVICE_TYPE'].isin(['T', 'B'])]
 if (len(bhnComAcc_df)):
     print("BHN_COM_Accounts")
     bhnComAcc_df = bhnComAcc_df.filter(ICOMS_KEYS)
     bhnComAcc_df['fileTime'] = pd.to_datetime(bhnComAcc_df['USAGE_CYCLE_END'])
     bhnComAcc_df['fileTime'] = bhnComAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
-    bhnComAcc_df['CHG_FILENAME'] = bhnComAcc_df.apply(createFile_ICOMS, axis=1)
+    bhnComAcc_df['CHG_FILENAME'] = bhnComAcc_df.apply(createFile_BHN, axis=1)
     bhnComAcc_df.drop(['fileTime'], axis=1, inplace=True)
     print(bhnComAcc_df)
 
 ### Combine all DF's
-frames = [priAcc_df, resAcc_df, bcpAcc_df, trksumAcc_df, primsumAcc_df, primdetAcc_df, npriAcc_df, nbcpAcc_df, bhnResAcc_df, bhnResAcc_df]
+frames = [priAcc_df, resAcc_df, bcpAcc_df, trksumAcc_df, primsumAcc_df, primdetAcc_df, npriAcc_df, nbcpAcc_df, bhnResAcc_df, bhnComAcc_df]
 all_df=pd.DataFrame()
 
 for frame in frames:
@@ -265,12 +280,16 @@ res_df = pd.merge(charge_df,new_df, on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
 res_df.drop('AR_ROUNDED_PRICE_x', axis=1, inplace=True)
 res_df.drop_duplicates(inplace=True)
 res_df.rename(columns={'AR_ROUNDED_PRICE_y':'Exp_AR_ROUNDED_PRICE'}, inplace=True)
+filesCount_df = res_df.groupby('CHG_FILENAME').count()['Exp_AR_ROUNDED_PRICE']
+filesCount_df = filesCount_df.to_frame().reset_index()
+filesCount_df.columns = ['Exp_ChargeFileName', 'Exp_RecordsCount']
 
 
 ### Write to output file
 writer = pd.ExcelWriter(outfile)
 all_df.to_excel(writer,'All_Records', index=False)
 res_df.to_excel(writer,'Aggr_Records', index=False)
+filesCount_df.to_excel(writer,'Summary', index=False)
 writer.save()
 
 """
