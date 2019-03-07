@@ -4,8 +4,9 @@ import pandas as pd
 from datetime import datetime
 import re
 import xlrd
+from openpyxl import Workbook
 
-
+outfile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\Output_ChargeFileValidation.xlsx"
 BL_RATED_filename = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BL_RATED.csv"
 df = pd.read_csv(BL_RATED_filename)
 
@@ -13,7 +14,7 @@ BillingInfoFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BillingSystemInf
 BI_DF = pd.read_excel(BillingInfoFile)
 
 clean_df = df[df['AR_ROUNDED_PRICE'] > 0]
-clean_df.ACCOUNT_NUMBER = clean_df.ACCOUNT_NUMBER.astype(int)
+clean_df.ACCOUNT_NUMBER = clean_df.ACCOUNT_NUMBER.astype(np.int64)
 
 #### Division code
 PRI_DIV = ['CAR', 'CVG', 'MKC', 'CMH', 'NEW', 'CAK', 'HNL']
@@ -24,7 +25,7 @@ PRISM_DIV = ['NAT', 'NTX', 'SAN', 'STX', 'LNK', 'LXM', 'CTX', 'HWI']
 PRIMDEV_DIV = ['NYC']
 
 ###Key fields
-CHRG_KEYS = ['DIVISION_CODE', 'ACCOUNT_TYPE', 'SERVICE_TYPE', 'SERVICE_TYPE', 'AR_ROUNDED_PRICE', 'FINANCE_ENTITY']
+CHRG_KEYS = ['ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'ACCOUNT_TYPE', 'AR_ROUNDED_PRICE', 'CALL_TYPE','CREDIT_DEBIT_IND','CHG_FILENAME']
 ACC_SERV_KEYS = ['ACCOUNT_TYPE', 'SERVICE_TYPE']
 ICOMS_KEYS = ['FINANCE_ENTITY', 'CREDIT_DEBIT_IND','ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE', 'SERVICE_TYPE', 'CALL_TYPE', 'CALL_COMP_CALL_TYPE',
               'TAX_INCLUSIVE_IND','AR_ROUNDED_PRICE','USAGE_CYCLE_END']
@@ -133,7 +134,7 @@ priAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(PRI_DIV) & clean_df['ACCOUNT
                      & clean_df['SERVICE_TYPE'].isin(['T'])]
 if (len(priAcc_df)):
     print("PRI Accounts")
-    print(priAcc_df[CHRG_KEYS])
+    #print(priAcc_df[CHRG_KEYS])
     priAcc_df = priAcc_df.filter(ICOMS_KEYS)
     priAcc_df['fileTime'] = pd.to_datetime(priAcc_df['USAGE_CYCLE_END'])
     priAcc_df['fileTime'] = priAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
@@ -248,6 +249,29 @@ if (len(bhnComAcc_df)):
     bhnComAcc_df['CHG_FILENAME'] = bhnComAcc_df.apply(createFile_ICOMS, axis=1)
     bhnComAcc_df.drop(['fileTime'], axis=1, inplace=True)
     print(bhnComAcc_df)
+
+### Combine all DF's
+frames = [priAcc_df, resAcc_df, bcpAcc_df, trksumAcc_df, primsumAcc_df, primdetAcc_df, npriAcc_df, nbcpAcc_df, bhnResAcc_df, bhnResAcc_df]
+all_df=pd.DataFrame()
+
+for frame in frames:
+    if len(frame):
+        all_df = pd.concat([all_df,frame])
+all_df = all_df.sort_values(['CHG_FILENAME'])
+
+charge_df = all_df.filter(CHRG_KEYS)
+new_df = charge_df.groupby(['ACCOUNT_NUMBER', 'CHARGE_NUMBER'], as_index=False)['AR_ROUNDED_PRICE'].sum()
+res_df = pd.merge(charge_df,new_df, on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
+res_df.drop('AR_ROUNDED_PRICE_x', axis=1, inplace=True)
+res_df.drop_duplicates(inplace=True)
+res_df.rename(columns={'AR_ROUNDED_PRICE_y':'Exp_AR_ROUNDED_PRICE'}, inplace=True)
+
+
+### Write to output file
+writer = pd.ExcelWriter(outfile)
+all_df.to_excel(writer,'All_Records', index=False)
+res_df.to_excel(writer,'Aggr_Records', index=False)
+writer.save()
 
 """
 # df1 = trksum_df[(trksum_df['DIVISION_CODE']=='NYC') & (trksum_df['SERVICE_TYPE']=='T')]
