@@ -5,16 +5,88 @@ from datetime import datetime
 import re
 import xlrd
 from openpyxl import Workbook
+from os import listdir
+from os.path import isfile, join
+
+confFile="/Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/BHN_CHG/Vara.txt"
+BillingInfoFile = "/Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/BillingSystemInfo.xlsx"
+outfile = "/Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/Output_ChargeFileValidation_BHN.xlsx"
+BL_RATED_filename = "/Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/BHN_CHG/BL_RATED.csv"
+CHARGE_FILES_PATH="/tmp"
+
+#if __NAME__ == "__main__":
 
 
 
 
-outfile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\Output_ChargeFileValidation_BHN.xlsx"
-#BL_RATED_filename = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BL_RATED.csv"
-BL_RATED_filename = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BHN_CHG\BL_RATED.csv"
+fh = open(confFile)
+lines = [line for line in fh.readlines() if line.strip('\n')]
+fh.close()
+
+
+for curline in lines:
+    if curline.startswith('#'):
+        print("Its comment line:" + curline)
+    else:
+        print("config line:" + curline)
+        res = curline.split('=')
+        if (res[0].strip() == 'BL_RATED'):
+            BL_RATED_filename = res[1].strip('\n')
+        elif (res[0].strip() == 'CHARGE_FILES_PATH'):
+            CHARGE_FILES_PATH = res[1].strip('\n')
+            CHARGE_FILES_PATH=CHARGE_FILES_PATH.strip('"')
+        elif (res[0].strip() == 'BILLING_SYS_INFO'):
+            BillingInfoFile = res[1].strip('\n')
+            BillingInfoFile=BillingInfoFile.strip('"')
+        elif (res[0].strip() == 'OUTPUT_FILE'):
+            outfile = res[1].strip('\n')
+            outfile = outfile.strip('"')
+
+#print ("BL_RATED_filename:" + BL_RATED_filename)
+#print ("CHARGE_FILES_PATH:" + CHARGE_FILES_PATH + ":")
+#print ("BILLING_SYS_INFO:" + BillingInfoFile)
+#print ("OUTPUT_FILE:" + outfile + ":")
+
+
+a_chargeFilesList = [f for f in listdir(CHARGE_FILES_PATH) if isfile(join(CHARGE_FILES_PATH, f))]
+print(a_chargeFilesList)
+
+def parseFile_BHN(file):
+    print ("Parsing BHN file:" + file)
+
+def parseFile_ICOMS(file):
+    print ("Parsing ICOMS file:" + file)
+
+def parseFile_CSG(file):
+    print ("Parsing CSG file:" + file)
+
+def parseFile_NS(file):
+    print ("Parsing NS file:" + file)
+
+for file in a_chargeFilesList:
+    if (re.search(r"^RES|^BUS", file)):
+        print ("BHN file:" + file)
+        file=CHARGE_FILES_PATH + "/" + file
+        parseFile_BHN(file)
+    elif (re.search(r"BCP|RES[a-z,A-Z]|PRI", file)):
+        print ("ICOMS file:" + file)
+        file=CHARGE_FILES_PATH + "/" + file
+        parseFile_ICOMS(file)
+    elif (re.search(r"^twcvp", file)):
+        print ("CSG file:" + file)
+        file=CHARGE_FILES_PATH + "/" + file
+        parseFile_CSG(file)
+    elif (re.search(r"^twnyc", file)):
+        print ("NS file:" + file)
+        file=CHARGE_FILES_PATH + "/" + file
+        parseFile_NS(file)
+    else:
+        print("INVALID FILE:" + file)
+
+"""
 df = pd.read_csv(BL_RATED_filename)
 
-BillingInfoFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BillingSystemInfo.xlsx"
+
 BI_DF = pd.read_excel(BillingInfoFile)
 
 clean_df = df[df['AR_ROUNDED_PRICE'] > 0]
@@ -292,7 +364,7 @@ res_df.to_excel(writer,'Aggr_Records', index=False)
 filesCount_df.to_excel(writer,'Summary', index=False)
 writer.save()
 
-"""
+
 # df1 = trksum_df[(trksum_df['DIVISION_CODE']=='NYC') & (trksum_df['SERVICE_TYPE']=='T')]
 # print(df1[['ACCOUNT_NUMBER','CHARGE_NUMBER','AR_ROUNDED_PRICE']])
 
