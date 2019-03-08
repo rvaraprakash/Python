@@ -1,0 +1,10 @@
+#############################################################
+##### Configuration file Charge file validation #############
+#############################################################
+
+BL_RATED="/Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/BHN_CHG/BL_RATED.csv"
+
+#CHARGE_FILES_PATH="/Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/BHN_CHG/chargeFiles"
+CHARGE_FILES_PATH="/Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/ChargeFiles_all"
+BILLING_SYS_INFO=".../Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/BillingSystemInfo.xlsx"
+OUTPUT_FILE = "../Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/Output_ChargeFileValidation_BHN.xlsx"
