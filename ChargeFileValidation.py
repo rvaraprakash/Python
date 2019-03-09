@@ -6,17 +6,20 @@ import re
 import xlrd
 from openpyxl import Workbook
 from os import listdir
+import xlsxwriter
 from os.path import isfile, join
+import os
 
-confFile="/Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/BHN_CHG/Vara.txt"
-BillingInfoFile = "/Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/BillingSystemInfo.xlsx"
-outfile = "/Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/Output_ChargeFileValidation_BHN.xlsx"
-BL_RATED_filename = "/Users/varaprakashreddy/Charter/Pract/ChargeFiles/ChargeFileGen/BHN_CHG/BL_RATED.csv"
-CHARGE_FILES_PATH="/tmp"
+confFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BHN_CHG\Vara.txt"
 
-#if __NAME__ == "__main__":
+#### Values coming from config file
+#BL_RATED_filename = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BL_RATED.csv"
+#BillingInfoFile = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BillingSystemInfo.xlsx"
+#outfile ="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\Output_ChargeFileValidation_BHN.xlsx"
 
-
+OUTPUT_FILE = "ChargeFileValidation.xlsx" ### Default value
+#BL_RATED_filename = ""
+#BillingInfoFile = ""
 
 
 fh = open(confFile)
@@ -26,42 +29,107 @@ fh.close()
 
 for curline in lines:
     if curline.startswith('#'):
-        print("Its comment line:" + curline)
+        pass
+       # print("Its comment line:" + curline)
     else:
         print("config line:" + curline)
         res = curline.split('=')
         if (res[0].strip() == 'BL_RATED'):
             BL_RATED_filename = res[1].strip('\n')
+            BL_RATED_filename = BL_RATED_filename.strip()
+            BL_RATED_filename = BL_RATED_filename.strip('"')
+            print("BL_RATED_filename:"+BL_RATED_filename+":")
+           #if (os.path.exists(BL_RATED_filename) == False):
+            #    print("File not exists:" + BL_RATED_filename)
+             #   exit(-1)
         elif (res[0].strip() == 'CHARGE_FILES_PATH'):
             CHARGE_FILES_PATH = res[1].strip('\n')
+            CHARGE_FILES_PATH = CHARGE_FILES_PATH.strip()
             CHARGE_FILES_PATH=CHARGE_FILES_PATH.strip('"')
+            #if os.path.exists(CHARGE_FILES_PATH) == False:
+             #   print("File not exists:" + CHARGE_FILES_PATH)
+              #  exit(-1)
         elif (res[0].strip() == 'BILLING_SYS_INFO'):
             BillingInfoFile = res[1].strip('\n')
+            BillingInfoFile = BillingInfoFile.strip()
             BillingInfoFile=BillingInfoFile.strip('"')
+            #if os.path.exists(BillingInfoFile) == False:
+             #   print("File not exists:" + BillingInfoFile)
+              #  exit(-1)
         elif (res[0].strip() == 'OUTPUT_FILE'):
-            outfile = res[1].strip('\n')
-            outfile = outfile.strip('"')
+            OUTPUT_FILE = res[1].strip('\n')
+            OUTPUT_FILE = OUTPUT_FILE.strip()
+            OUTPUT_FILE = OUTPUT_FILE.strip('"')
 
-#print ("BL_RATED_filename:" + BL_RATED_filename)
-#print ("CHARGE_FILES_PATH:" + CHARGE_FILES_PATH + ":")
-#print ("BILLING_SYS_INFO:" + BillingInfoFile)
-#print ("OUTPUT_FILE:" + outfile + ":")
+            #if os.path.exists(outfile) == False:
+             #   print("File not exists:" + outfile)
+              #  exit(-1)
 
+#### Validate files befor procee
+"""
+if os.path.exists(BL_RATED_filename) == False:
+    print ("Not found BL_RATED_filename:" + BL_RATED_filename)
+    print ("Can't continue, exiting")
+    exit(-1)
+
+if os.path.exists(BILLING_SYS_INFO) == False:
+    print ("Not found BillingInfoFile:" + BILLING_SYS_INFO)
+    print ("Can't continue, exiting")
+    exit(-1)
+"""
+
+
+a_chargeFilesRecDict = {}
+a_chargeFilesRecCntDict = {}
 
 a_chargeFilesList = [f for f in listdir(CHARGE_FILES_PATH) if isfile(join(CHARGE_FILES_PATH, f))]
 print(a_chargeFilesList)
 
+def addToMap(file):
+    fh = open(file)
+    lines = [line for line in fh.readlines() if line.strip('\n')]
+    fh.close()
+    lst = list()
+    for line in lines:
+        lst.append(line)
+    key = os.path.basename(file)
+    a_chargeFilesRecDict[key] = lst
+
 def parseFile_BHN(file):
-    print ("Parsing BHN file:" + file)
+    #print ("Parsing BHN file:" + file)
+    addToMap(file)
+    key = os.path.basename(file)
+    ### Remove one header and trailer count
+    recCount = str(len(a_chargeFilesRecDict[key]) - 2)
+    key = key[:11] + "xxxx.txt"
+    print(key + ":" + recCount)
+    a_chargeFilesRecCntDict[key]=recCount
 
 def parseFile_ICOMS(file):
-    print ("Parsing ICOMS file:" + file)
+    #print ("Parsing ICOMS file:" + file)
+    addToMap(file)
+    key = os.path.basename(file)
+    ### Remove one header and trailer count
+    recCount = str(len(a_chargeFilesRecDict[key]) - 2)
+    print(key + ":" + recCount)
+    a_chargeFilesRecCntDict[key] = recCount
 
 def parseFile_CSG(file):
-    print ("Parsing CSG file:" + file)
+    #print ("Parsing CSG file:" + file)
+    addToMap(file)
+    key = os.path.basename(file)
+    recCount = str(len(a_chargeFilesRecDict[key]))
+    print(key + ":" + recCount)
+    a_chargeFilesRecCntDict[key] = recCount
 
-def parseFile_NS(file):
-    print ("Parsing NS file:" + file)
+def parseFile_NYC(file):
+    #print ("Parsing NYC file:" + file)
+    addToMap(file)
+    key = os.path.basename(file)
+    ### Remove one header count
+    recCount = str(len(a_chargeFilesRecDict[key]) - 1 )
+    print(key + ":" + recCount)
+    a_chargeFilesRecCntDict[key] = recCount
 
 for file in a_chargeFilesList:
     if (re.search(r"^RES|^BUS", file)):
@@ -77,15 +145,20 @@ for file in a_chargeFilesList:
         file=CHARGE_FILES_PATH + "/" + file
         parseFile_CSG(file)
     elif (re.search(r"^twnyc", file)):
-        print ("NS file:" + file)
+        print ("NYC file:" + file)
         file=CHARGE_FILES_PATH + "/" + file
-        parseFile_NS(file)
+        parseFile_NYC(file)
     else:
         print("INVALID FILE:" + file)
+a_recCount_df = pd.DataFrame(list(a_chargeFilesRecCntDict.items()), columns=['ChargeFileName','Actual_Count'])
+print(a_recCount_df)
 
-"""
-df = pd.read_csv(BL_RATED_filename)
-
+fileType = os.path.basename(BL_RATED_filename).split('.')[1]
+print("fileType:" + fileType)
+if (fileType == "csv"):
+    df = pd.read_csv(BL_RATED_filename)
+else:
+    df = pd.read_excel(BL_RATED_filename)
 
 BI_DF = pd.read_excel(BillingInfoFile)
 
@@ -101,7 +174,7 @@ PRISM_DIV = ['NAT', 'NTX', 'SAN', 'STX', 'LNK', 'LXM', 'CTX', 'HWI']
 PRIMDEV_DIV = ['NYC']
 
 ###Key fields
-CHRG_KEYS = ['ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'ACCOUNT_TYPE', 'AR_ROUNDED_PRICE', 'CALL_TYPE','CREDIT_DEBIT_IND','CHG_FILENAME']
+CHRG_KEYS = ['BILLER','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'ACCOUNT_TYPE', 'AR_ROUNDED_PRICE', 'CALL_TYPE','CREDIT_DEBIT_IND','CHG_FILENAME']
 ACC_SERV_KEYS = ['ACCOUNT_TYPE', 'SERVICE_TYPE']
 ICOMS_KEYS = ['FINANCE_ENTITY', 'CREDIT_DEBIT_IND','ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE', 'SERVICE_TYPE', 'CALL_TYPE', 'CALL_COMP_CALL_TYPE',
               'TAX_INCLUSIVE_IND','AR_ROUNDED_PRICE','USAGE_CYCLE_END']
@@ -227,7 +300,8 @@ if (len(priAcc_df)):
     priAcc_df['fileTime'] = priAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     priAcc_df['CHG_FILENAME']= priAcc_df.apply(createFile_ICOMS, axis=1)
     priAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    print(priAcc_df)
+    resAcc_df['BILLER'] = "ICOMS_PRI"
+    #print(priAcc_df)
 
 
 #### RES Accounts
@@ -240,7 +314,8 @@ if (len(resAcc_df)):
     resAcc_df['fileTime'] = resAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     resAcc_df['CHG_FILENAME']= resAcc_df.apply(createFile_ICOMS, axis=1)
     resAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    print(resAcc_df)
+    resAcc_df['BILLER'] = "ICOMS_RES"
+    #print(resAcc_df)
 
 #### BCP Accounts
 bcpAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(BCP_DIV) & clean_df['ACCOUNT_TYPE'].isin(['C', 'F'])
@@ -252,7 +327,8 @@ if (len(bcpAcc_df)):
     bcpAcc_df['fileTime'] = bcpAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     bcpAcc_df['CHG_FILENAME'] = bcpAcc_df.apply(createFile_ICOMS, axis=1)
     bcpAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    print(bcpAcc_df)
+    bcpAcc_df['BILLER'] = "ICOMS_BCP"
+    #print(bcpAcc_df)
 
 
 #### Trunksum_Accounts
@@ -265,7 +341,8 @@ if (len(trksumAcc_df)):
     trksumAcc_df['fileTime'] = trksumAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     trksumAcc_df['CHG_FILENAME'] = trksumAcc_df.apply(createFile_CSG, axis=1)
     trksumAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    print(trksumAcc_df)
+    trksumAcc_df['BILLER'] = "CSG_TRKSUM"
+    #print(trksumAcc_df)
 
 #### Primsum_Accounts
 primsumAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(TRKSM_DIV) & clean_df['ACCOUNT_TYPE'].isin(['R', 'C'])
@@ -277,7 +354,8 @@ if (len(primsumAcc_df)):
     primsumAcc_df['fileTime'] = primsumAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     primsumAcc_df['CHG_FILENAME'] = primsumAcc_df.apply(createFile_CSG, axis=1)
     primsumAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    print(primsumAcc_df)
+    primsumAcc_df['BILLER'] = "CSG_PRIMSUM"
+    #print(primsumAcc_df)
 
 #### PrimdetNYC_Accounts
 primdetAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(['NYC']) & clean_df['ACCOUNT_TYPE'].isin(['R', 'C'])
@@ -289,7 +367,8 @@ if (len(primdetAcc_df)):
     primdetAcc_df['fileTime'] = primdetAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     primdetAcc_df['CHG_FILENAME'] = primdetAcc_df.apply(createFile_CSG, axis=1)
     primdetAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    print(primdetAcc_df)
+    primdetAcc_df['BILLER'] = "CSG_NYC"
+    #print(primdetAcc_df)
 
 #### National_PRI_Accounts
 npriAcc_df = clean_df[clean_df['ACCOUNT_TYPE'].isin(['N']) & clean_df['SERVICE_TYPE'].isin(['T'])]
@@ -300,7 +379,8 @@ if (len(npriAcc_df)):
     npriAcc_df['fileTime'] = npriAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     npriAcc_df['CHG_FILENAME'] = npriAcc_df.apply(createFile_NS, axis=1)
     npriAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    print(npriAcc_df)
+    npriAcc_df['BILLER'] = "NATIONAL"
+    #print(npriAcc_df)
 
 #### National_BCP_Accounts
 nbcpAcc_df = clean_df[clean_df['ACCOUNT_TYPE'].isin(['N']) & clean_df['SERVICE_TYPE'].isin(['B', 'F'])]
@@ -311,7 +391,8 @@ if (len(nbcpAcc_df)):
     nbcpAcc_df['fileTime'] = nbcpAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     nbcpAcc_df['CHG_FILENAME'] = nbcpAcc_df.apply(createFile_NS, axis=1)
     nbcpAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    print(nbcpAcc_df)
+    nbcpAcc_df['BILLER'] = "NATIONAL"
+    #print(nbcpAcc_df)
 
 #### BHN_RES_Accounts
 bhnResAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(['BHN']) & clean_df['ACCOUNT_TYPE'].isin(['R'])
@@ -323,7 +404,8 @@ if (len(bhnResAcc_df)):
     bhnResAcc_df['fileTime'] = bhnResAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     bhnResAcc_df['CHG_FILENAME'] = bhnResAcc_df.apply(createFile_BHN, axis=1)
     bhnResAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    print(bhnResAcc_df)
+    bhnResAcc_df['BILLER'] = "BHN"
+    #print(bhnResAcc_df)
 
 #### BHN_COM_Accounts
 bhnComAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(['BHN']) & clean_df['ACCOUNT_TYPE'].isin(['C','T'])
@@ -335,7 +417,8 @@ if (len(bhnComAcc_df)):
     bhnComAcc_df['fileTime'] = bhnComAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     bhnComAcc_df['CHG_FILENAME'] = bhnComAcc_df.apply(createFile_BHN, axis=1)
     bhnComAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    print(bhnComAcc_df)
+    bhnComAcc_df['BILLER'] = "BHN"
+    #print(bhnComAcc_df)
 
 ### Combine all DF's
 frames = [priAcc_df, resAcc_df, bcpAcc_df, trksumAcc_df, primsumAcc_df, primdetAcc_df, npriAcc_df, nbcpAcc_df, bhnResAcc_df, bhnComAcc_df]
@@ -352,25 +435,24 @@ res_df = pd.merge(charge_df,new_df, on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
 res_df.drop('AR_ROUNDED_PRICE_x', axis=1, inplace=True)
 res_df.drop_duplicates(inplace=True)
 res_df.rename(columns={'AR_ROUNDED_PRICE_y':'Exp_AR_ROUNDED_PRICE'}, inplace=True)
-filesCount_df = res_df.groupby('CHG_FILENAME').count()['Exp_AR_ROUNDED_PRICE']
+filesCount_df = res_df.groupby(['BILLER','CHG_FILENAME']).count()['Exp_AR_ROUNDED_PRICE']
 filesCount_df = filesCount_df.to_frame().reset_index()
-filesCount_df.columns = ['Exp_ChargeFileName', 'Exp_RecordsCount']
+filesCount_df.columns = ['BILLER','ChargeFileName', 'Exp_RecordsCount']
 
+sum_result_df = pd.merge(filesCount_df,a_recCount_df, how='outer', on=['ChargeFileName'])
+print(sum_result_df)
 
 ### Write to output file
-writer = pd.ExcelWriter(outfile)
-all_df.to_excel(writer,'All_Records', index=False)
-res_df.to_excel(writer,'Aggr_Records', index=False)
-filesCount_df.to_excel(writer,'Summary', index=False)
-writer.save()
+try :
+    writer = pd.ExcelWriter(OUTPUT_FILE, engine='xlsxwriter')
+    all_df.to_excel(writer,'All_Records', index=False)
+    res_df.to_excel(writer,'Aggr_Records', index=False)
+    sum_result_df.to_excel(writer,'Summary', index=False)
+    writer.save()
+except PermissionError:
+    print("\nERROR:")
+    print("Please close file:'" + os.path.basename(OUTPUT_FILE) + "' and try again")
+    exit(-1)
 
 
-# df1 = trksum_df[(trksum_df['DIVISION_CODE']=='NYC') & (trksum_df['SERVICE_TYPE']=='T')]
-# print(df1[['ACCOUNT_NUMBER','CHARGE_NUMBER','AR_ROUNDED_PRICE']])
-
-### Sum AR_PRICE based on same account/charge num
-# df2= df1.groupby(['ACCOUNT_NUMBER','CHARGE_NUMBER'])['AR_ROUNDED_PRICE'].sum()
-
-# print(df2)
-
-"""
+print("\nOutputfile:" + OUTPUT_FILE)
