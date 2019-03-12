@@ -81,9 +81,21 @@ if os.path.exists(BILLING_SYS_INFO) == False:
 
 a_chargeFilesRecDict = {}
 a_chargeFilesRecCntDict = {}
+a_chargeFilesRecSpltDict = {}
+#a_BHN_df = pd.DataFrame(columns=['Account', 'Charge', 'Amount', 'Serv'])
+a_BHN_df = pd.DataFrame(columns=['FileName','AccountNum','ChargeNumber','Amount','CallType','Service'])
+a_CSG_df = pd.DataFrame(columns=['FileName','AccountNum','ChargeNumber','Amount','CallType','AccType'])
+a_ICOMS_df = pd.DataFrame(columns=['FileName','CreditDebitInd','AccountNum','ChargeNumber','Amount'])
 
-a_chargeFilesList = [f for f in listdir(CHARGE_FILES_PATH) if isfile(join(CHARGE_FILES_PATH, f))]
-print(a_chargeFilesList)
+
+### If charge file specified
+try:
+    if CHARGE_FILES_PATH is not None:
+        a_chargeFilesList = [f for f in listdir(CHARGE_FILES_PATH) if isfile(join(CHARGE_FILES_PATH, f))]
+        print(a_chargeFilesList)
+except NameError:
+    print("CHARGE_FILES_PATH not defined")
+    a_chargeFilesList = list()
 
 def addToMap(file):
     fh = open(file)
@@ -91,13 +103,177 @@ def addToMap(file):
     fh.close()
     lst = list()
     for line in lines:
+        line.strip('\n')
         lst.append(line)
     key = os.path.basename(file)
     a_chargeFilesRecDict[key] = lst
 
+def parseRecords_BHN(file):
+    key = os.path.basename(file)
+    recs = a_chargeFilesRecDict[key]
+    global a_BHN_df
+    l_accNum = list()
+    l_chgrNum = list()
+    l_amount = list()
+    l_callType = list()
+    l_service = list()
+    l_fileName = list()
+    for rec in recs:
+        #print(rec)
+        if re.findall(r"^H", rec):
+            print("Header:" + rec)
+            l_header = rec.split(',')[0]
+            l_hdrRecCount = rec.split(',')[1]
+            #print(a_BHN_df)
+        elif re.findall(r"^F", rec):
+            print("Footer:" + rec)
+            l_footer = rec.split(',')[0]
+            l_ftrRecCount = rec.split(',')[1]
+        else:
+            print("Actual Record:" + rec)
+            l_accNum.append(rec[0:16])
+            l_chgrNum.append(rec[16:26])
+            l_amount.append(rec[26:33])
+            l_callType.append(rec[33:35])
+            l_service.append(rec[35:36])
+            l_fileName.append(key)
+    ### From Dict
+    bhn_dict = {'FileName': l_fileName,
+                'AccountNum':l_accNum,
+                'ChargeNumber': l_chgrNum,
+                'Amount': l_amount,
+                'CallType': l_callType,
+                'Service':l_service}
+
+    tmp_df = pd.DataFrame.from_dict(bhn_dict)
+    a_BHN_df = pd.concat([a_BHN_df, tmp_df])
+    #print("a_BHN_df:", a_BHN_df)
+
+def parseRecords_ICOMS(file):
+    key = os.path.basename(file)
+    recs = a_chargeFilesRecDict[key]
+    global a_ICOMS_df
+    l_cdInd = list()
+    l_accNum = list()
+    l_chgrNum = list()
+    l_amount = list()
+    l_fileName = list()
+    for rec in recs:
+        #print(rec)
+        if re.findall(r"^H", rec):
+            print("Header:" + rec)
+            l_header = rec.split(',')[0]
+            l_hdrTotAmount = rec.split(',')[1]
+        elif re.findall(r"^F", rec):
+            print("Footer:" + rec)
+            l_footer = rec.split(',')[0]
+            l_ftrTotAmount = rec.split(',')[1]
+        else:
+            print("Actual Record:" + rec)
+            l_cdInd.append(rec.split(',')[0][:1])
+            l_accNum.append(rec.split(',')[0][1:])
+            l_chgrNum.append(rec.split(',')[1])
+            l_amount.append(rec.split(',')[2])
+            l_fileName.append(key)
+    ### From Dict
+    icoms_dict = {'FileName': l_fileName,
+                'CreditDebitInd': l_cdInd,
+                'AccountNum':l_accNum,
+                'ChargeNumber': l_chgrNum,
+                'Amount': l_amount}
+
+    tmp_df = pd.DataFrame.from_dict(icoms_dict)
+    a_ICOMS_df = pd.concat([a_ICOMS_df, tmp_df], sort=False)
+    #print("a_ICOMS_df:", a_ICOMS_df)
+
+def parseRecords_CSG(file):
+    key = os.path.basename(file)
+    recs = a_chargeFilesRecDict[key]
+    global a_CSG_df
+    l_accNum = list()
+    l_chgrNum = list()
+    l_amount = list()
+    l_callType = list()
+    l_accType = list()
+    l_fileName = list()
+    for rec in recs:
+        #print(rec)
+        if re.findall(r"^H", rec):
+            print("Header:" + rec)
+            l_header = rec.split(',')[0]
+            l_hdrRecCount = rec.split(',')[1]
+            #print(a_BHN_df)
+        elif re.findall(r"^F", rec):
+            print("Footer:" + rec)
+            l_footer = rec.split(',')[0]
+            l_ftrRecCount = rec.split(',')[1]
+        else:
+            print("Actual Record:" + rec)
+            l_accNum.append(rec[0:16])
+            l_chgrNum.append(rec[16:26])
+            l_amount.append(rec[26:33])
+            l_callType.append(rec[33:39])
+            l_accType.append(rec[39:40])
+            l_fileName.append(key)
+    ### From Dict
+    csg_dict = {'FileName': l_fileName,
+                'AccountNum':l_accNum,
+                'ChargeNumber': l_chgrNum,
+                'Amount': l_amount,
+                'CallType': l_callType,
+                'AccType':l_accType}
+
+    tmp_df = pd.DataFrame.from_dict(csg_dict)
+    a_CSG_df = pd.concat([a_CSG_df, tmp_df], sort=False)
+    #print("a_CSG_df:", a_CSG_df)
+
+def parseRecords_NYC(file):
+    key = os.path.basename(file)
+    recs = a_chargeFilesRecDict[key]
+    global a_NYC_df
+    l_accNum = list()
+    l_chgrNum = list()
+    l_dialDigit = list()
+    l_resComFlag = list()
+    l_servCode = list()
+    l_amount = list()
+    l_callType = list()
+    l_accType = list()
+    l_fileName = list()
+    for rec in recs:
+        #print(rec)
+        if re.findall(r",0", rec):
+            print("Header:" + rec)
+            l_header = rec
+        else:
+            print("Actual Record:" + rec)
+            l_accNum.append(rec.split(',')[4])
+            l_chgrNum.append(rec.split(',')[5])
+            l_dialDigit.append(rec.split(',')[29])
+            l_callType.append(rec.split(',')[29])
+            l_resComFlag.append(rec.split(',')[29])
+            l_servCode.append(rec.split(',')[29])
+            l_amount.append(rec.split(',')[5])
+            l_fileName.append(key)
+    ### From Dict
+    csg_dict = {'FileName': l_fileName,
+                'AccountNum':l_accNum,
+                'ChargeNumber': l_chgrNum,
+                'DialedDigit':l_dialDigit,
+                'CallType': l_callType,
+                'ServiceCode': l_servCode,
+                'Amount': l_amount,
+                'AccType':l_accType}
+
+    tmp_df = pd.DataFrame.from_dict(csg_dict)
+    a_NYC_df = pd.concat([a_NYC_df, tmp_df], sort=False)
+    #print("a_NYC_df:", a_NYC_df)
+
 def parseFile_BHN(file):
-    #print ("Parsing BHN file:" + file)
+    print ("Parsing BHN file:" + file)
     addToMap(file)
+    parseRecords_BHN(file)
+    #print(a_BHN_df)
     key = os.path.basename(file)
     ### Remove one header and trailer count
     recCount = str(len(a_chargeFilesRecDict[key]) - 2)
@@ -108,6 +284,7 @@ def parseFile_BHN(file):
 def parseFile_ICOMS(file):
     #print ("Parsing ICOMS file:" + file)
     addToMap(file)
+    parseRecords_ICOMS(file)
     key = os.path.basename(file)
     ### Remove one header and trailer count
     recCount = str(len(a_chargeFilesRecDict[key]) - 2)
@@ -117,6 +294,7 @@ def parseFile_ICOMS(file):
 def parseFile_CSG(file):
     #print ("Parsing CSG file:" + file)
     addToMap(file)
+    parseRecords_CSG(file)
     key = os.path.basename(file)
     recCount = str(len(a_chargeFilesRecDict[key]))
     print(key + ":" + recCount)
@@ -151,19 +329,27 @@ for file in a_chargeFilesList:
     else:
         print("INVALID FILE:" + file)
 a_recCount_df = pd.DataFrame(list(a_chargeFilesRecCntDict.items()), columns=['ChargeFileName','Actual_Count'])
-print(a_recCount_df)
+#print(a_recCount_df)
+
+#exit()
 
 fileType = os.path.basename(BL_RATED_filename).split('.')[1]
-print("fileType:" + fileType)
+#print("fileType:" + fileType)
 if (fileType == "csv"):
     df = pd.read_csv(BL_RATED_filename)
 else:
     df = pd.read_excel(BL_RATED_filename)
 
-BI_DF = pd.read_excel(BillingInfoFile)
+BI_DF = pd.read_excel(BillingInfoFile, sheet_name='Information')
+#print("BI_DF:", BI_DF)
+
+BHN_Ref_DF = pd.read_excel(BillingInfoFile, sheet_name='BHN_REF')
 
 clean_df = df[df['AR_ROUNDED_PRICE'] > 0]
 clean_df.ACCOUNT_NUMBER = clean_df.ACCOUNT_NUMBER.astype(np.int64)
+
+def getChargeCallType_BHN():
+    pass
 
 #### Division code
 PRI_DIV = ['CAR', 'CVG', 'MKC', 'CMH', 'NEW', 'CAK', 'HNL']
@@ -445,9 +631,15 @@ print(sum_result_df)
 ### Write to output file
 try :
     writer = pd.ExcelWriter(OUTPUT_FILE, engine='xlsxwriter')
-    all_df.to_excel(writer,'All_Records', index=False)
-    res_df.to_excel(writer,'Aggr_Records', index=False)
     sum_result_df.to_excel(writer,'Summary', index=False)
+    if (len(a_BHN_df) > 1 ):
+        a_BHN_df.to_excel(writer,'BHN', index=False)
+    if (len(a_CSG_df) > 1 ):
+        a_CSG_df.to_excel(writer,'CSG', index=False)
+    if (len(a_ICOMS_df) > 1 ):
+        a_ICOMS_df.to_excel(writer,'TWC_ICOMS', index=False)
+    all_df.to_excel(writer, 'All_Records', index=False)
+    res_df.to_excel(writer, 'Aggr_Records', index=False)
     writer.save()
 except PermissionError:
     print("\nERROR:")
