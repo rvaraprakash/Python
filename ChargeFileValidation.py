@@ -12,77 +12,56 @@ import os
 
 confFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BHN_CHG\Vara.txt"
 
-#### Values coming from config file
-#BL_RATED_filename = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BL_RATED.csv"
-#BillingInfoFile = "C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BillingSystemInfo.xlsx"
-#outfile ="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\Output_ChargeFileValidation_BHN.xlsx"
-
 OUTPUT_FILE = "ChargeFileValidation.xlsx" ### Default value
-#BL_RATED_filename = ""
-#BillingInfoFile = ""
-
 
 fh = open(confFile)
 lines = [line for line in fh.readlines() if line.strip('\n')]
 fh.close()
 
-
+#### Read Configuration file
 for curline in lines:
     if curline.startswith('#'):
         pass
        # print("Its comment line:" + curline)
     else:
-        print("config line:" + curline)
+        #print("config line:" + curline)
         res = curline.split('=')
         if (res[0].strip() == 'BL_RATED'):
             BL_RATED_filename = res[1].strip('\n')
             BL_RATED_filename = BL_RATED_filename.strip()
             BL_RATED_filename = BL_RATED_filename.strip('"')
-            print("BL_RATED_filename:"+BL_RATED_filename+":")
-           #if (os.path.exists(BL_RATED_filename) == False):
-            #    print("File not exists:" + BL_RATED_filename)
-             #   exit(-1)
+            print("BL_RATED_filename:", BL_RATED_filename, ":")
+            if os.path.exists(BL_RATED_filename) != True:
+                print("File not exists:'", BL_RATED_filename, "'")
+                exit(-1)
         elif (res[0].strip() == 'CHARGE_FILES_PATH'):
             CHARGE_FILES_PATH = res[1].strip('\n')
             CHARGE_FILES_PATH = CHARGE_FILES_PATH.strip()
-            CHARGE_FILES_PATH=CHARGE_FILES_PATH.strip('"')
-            #if os.path.exists(CHARGE_FILES_PATH) == False:
-             #   print("File not exists:" + CHARGE_FILES_PATH)
-              #  exit(-1)
+            CHARGE_FILES_PATH = CHARGE_FILES_PATH.strip('"')
+            if os.path.exists(CHARGE_FILES_PATH) != True:
+                print("File not exists:", CHARGE_FILES_PATH)
+                exit(-1)
         elif (res[0].strip() == 'BILLING_SYS_INFO'):
             BillingInfoFile = res[1].strip('\n')
             BillingInfoFile = BillingInfoFile.strip()
-            BillingInfoFile=BillingInfoFile.strip('"')
-            #if os.path.exists(BillingInfoFile) == False:
-             #   print("File not exists:" + BillingInfoFile)
-              #  exit(-1)
+            BillingInfoFile = BillingInfoFile.strip('"')
+            if os.path.exists(BillingInfoFile) != True:
+                print("File not exists:", BillingInfoFile)
+                exit(-1)
         elif (res[0].strip() == 'OUTPUT_FILE'):
             OUTPUT_FILE = res[1].strip('\n')
             OUTPUT_FILE = OUTPUT_FILE.strip()
             OUTPUT_FILE = OUTPUT_FILE.strip('"')
+            if os.path.exists(OUTPUT_FILE) != True:
+                print("File not exists:", OUTPUT_FILE)
+                exit(-1)
 
-            #if os.path.exists(outfile) == False:
-             #   print("File not exists:" + outfile)
-              #  exit(-1)
-
-#### Validate files befor procee
-"""
-if os.path.exists(BL_RATED_filename) == False:
-    print ("Not found BL_RATED_filename:" + BL_RATED_filename)
-    print ("Can't continue, exiting")
-    exit(-1)
-
-if os.path.exists(BILLING_SYS_INFO) == False:
-    print ("Not found BillingInfoFile:" + BILLING_SYS_INFO)
-    print ("Can't continue, exiting")
-    exit(-1)
-"""
-
-
+#### Declare variables required for reading charge files
+a_chargeFilesList = list()
 a_chargeFilesRecDict = {}
 a_chargeFilesRecCntDict = {}
 a_chargeFilesRecSpltDict = {}
-#a_BHN_df = pd.DataFrame(columns=['Account', 'Charge', 'Amount', 'Serv'])
+
 a_BHN_df = pd.DataFrame(columns=['FileName','AccountNum','ChargeNumber','Amount','CallType','Service'])
 a_CSG_df = pd.DataFrame(columns=['FileName','AccountNum','ChargeNumber','Amount','CallType','AccType'])
 a_ICOMS_df = pd.DataFrame(columns=['FileName','CreditDebitInd','AccountNum','ChargeNumber','Amount'])
@@ -94,11 +73,12 @@ a_NYC_df = pd.DataFrame(columns=['FileName','Division','AccountNum','ChargeNumbe
 try:
     if CHARGE_FILES_PATH is not None:
         a_chargeFilesList = [f for f in listdir(CHARGE_FILES_PATH) if isfile(join(CHARGE_FILES_PATH, f))]
-        print(a_chargeFilesList)
+        print("CHARGE_FILES",a_chargeFilesList)
 except NameError:
     print("CHARGE_FILES_PATH not defined")
-    a_chargeFilesList = list()
 
+
+#### Functions to read content of charge files
 def addToMap(file):
     fh = open(file)
     lines = [line for line in fh.readlines() if line.strip('\n')]
@@ -123,16 +103,16 @@ def parseRecords_BHN(file):
     for rec in recs:
         #print(rec)
         if re.findall(r"^H", rec):
-            print("Header:" + rec)
+            #print("Header:" + rec)
             l_header = rec.split(',')[0]
             l_hdrRecCount = rec.split(',')[1]
             #print(a_BHN_df)
         elif re.findall(r"^F", rec):
-            print("Footer:" + rec)
+            #print("Footer:" + rec)
             l_footer = rec.split(',')[0]
             l_ftrRecCount = rec.split(',')[1]
         else:
-            print("Actual Record:" + rec)
+            #print("Actual Record:" + rec)
             l_accNum.append(rec[0:16])
             l_chgrNum.append(rec[16:26])
             l_amount.append(rec[26:33])
@@ -163,15 +143,15 @@ def parseRecords_ICOMS(file):
     for rec in recs:
         #print(rec)
         if re.findall(r"^H", rec):
-            print("Header:" + rec)
+            #print("Header:" + rec)
             l_header = rec.split(',')[0]
             l_hdrTotAmount = rec.split(',')[1]
         elif re.findall(r"^F", rec):
-            print("Footer:" + rec)
+            #print("Footer:" + rec)
             l_footer = rec.split(',')[0]
             l_ftrTotAmount = rec.split(',')[1]
         else:
-            print("Actual Record:" + rec)
+            #print("Actual Record:" + rec)
             l_cdInd.append(rec.split(',')[0][:1])
             l_accNum.append(rec.split(',')[0][1:])
             l_chgrNum.append(rec.split(',')[1])
@@ -201,16 +181,16 @@ def parseRecords_CSG(file):
     for rec in recs:
         #print(rec)
         if re.findall(r"^H", rec):
-            print("Header:" + rec)
+            #print("Header:" + rec)
             l_header = rec.split(',')[0]
             l_hdrRecCount = rec.split(',')[1]
             #print(a_BHN_df)
         elif re.findall(r"^F", rec):
-            print("Footer:" + rec)
+            #print("Footer:" + rec)
             l_footer = rec.split(',')[0]
             l_ftrRecCount = rec.split(',')[1]
         else:
-            print("Actual Record:" + rec)
+            #print("Actual Record:" + rec)
             l_accNum.append(rec[0:16])
             l_chgrNum.append(rec[16:26])
             l_amount.append(rec[26:33])
@@ -249,10 +229,10 @@ def parseRecords_NYC(file):
         rec = rec.strip('\n')
         #print("rec:",rec,":")
         if len(rec) == 2:
-            print("Header:" + rec)
+            #print("Header:" + rec)
             l_header = rec
         else:
-            print("Actual Record:" + rec)
+            #print("Actual Record:" + rec)
             l_division.append(rec.split(',')[1])
             l_accNum.append(rec.split(',')[4])
             l_chgrNum.append(rec.split(',')[5])
@@ -278,7 +258,7 @@ def parseRecords_NYC(file):
     #print("a_NYC_df:", a_NYC_df)
 
 def parseFile_BHN(file):
-    print ("Parsing BHN file:" + file)
+    #print ("Parsing BHN file:" + file)
     addToMap(file)
     parseRecords_BHN(file)
     #print(a_BHN_df)
@@ -286,7 +266,7 @@ def parseFile_BHN(file):
     ### Remove one header and trailer count
     recCount = str(len(a_chargeFilesRecDict[key]) - 2)
     key = key[:11] + "xxxx.txt"
-    print(key + ":" + recCount)
+    #print(key + ":" + recCount)
     a_chargeFilesRecCntDict[key]=recCount
 
 def parseFile_ICOMS(file):
@@ -296,7 +276,7 @@ def parseFile_ICOMS(file):
     key = os.path.basename(file)
     ### Remove one header and trailer count
     recCount = str(len(a_chargeFilesRecDict[key]) - 2)
-    print(key + ":" + recCount)
+    #print(key + ":" + recCount)
     a_chargeFilesRecCntDict[key] = recCount
 
 def parseFile_CSG(file):
@@ -305,7 +285,7 @@ def parseFile_CSG(file):
     parseRecords_CSG(file)
     key = os.path.basename(file)
     recCount = str(len(a_chargeFilesRecDict[key]))
-    print(key + ":" + recCount)
+    #print(key + ":" + recCount)
     a_chargeFilesRecCntDict[key] = recCount
 
 def parseFile_NYC(file):
@@ -315,24 +295,24 @@ def parseFile_NYC(file):
     key = os.path.basename(file)
     ### Remove one header count
     recCount = str(len(a_chargeFilesRecDict[key]) - 1 )
-    print(key + ":" + recCount)
+    #print(key + ":" + recCount)
     a_chargeFilesRecCntDict[key] = recCount
 
 for file in a_chargeFilesList:
     if (re.search(r"^RES|^BUS", file)):
-        print ("BHN file:" + file)
+        #print ("BHN file:" + file)
         file=CHARGE_FILES_PATH + "/" + file
         parseFile_BHN(file)
     elif (re.search(r"BCP|RES[a-z,A-Z]|PRI", file)):
-        print ("ICOMS file:" + file)
+        #print ("ICOMS file:" + file)
         file=CHARGE_FILES_PATH + "/" + file
         parseFile_ICOMS(file)
     elif (re.search(r"^twcvp", file)):
-        print ("CSG file:" + file)
+        #print ("CSG file:" + file)
         file=CHARGE_FILES_PATH + "/" + file
         parseFile_CSG(file)
     elif (re.search(r"^twnyc", file)):
-        print ("NYC file:" + file)
+        #print ("NYC file:" + file)
         file=CHARGE_FILES_PATH + "/" + file
         parseFile_NYC(file)
     else:
@@ -340,7 +320,6 @@ for file in a_chargeFilesList:
 a_recCount_df = pd.DataFrame(list(a_chargeFilesRecCntDict.items()), columns=['ChargeFileName','Actual_Count'])
 #print(a_recCount_df)
 
-#exit()
 
 fileType = os.path.basename(BL_RATED_filename).split('.')[1]
 #print("fileType:" + fileType)
@@ -489,10 +468,17 @@ def createFile_BHN(row):
 def getCallType_BHN(row):
     res_df = BHN_Ref_DF[(BHN_Ref_DF['CallType'] == row['CALL_TYPE']) &
                         (BHN_Ref_DF['CreditDebitInd'] == row['CREDIT_DEBIT_IND'])]
+    print("Row:", row[['ACCOUNT_NUMBER','CALL_TYPE','CREDIT_DEBIT_IND']])
+    print("res_df:", res_df['ChargFile_callType'])
     if (len(res_df) > 1):
-        pass
+        tmp_df = res_df[res_df['CallCompCallType'].str.contains(row['CALL_COMP_CALL_TYPE']) & ~res_df['CallCompCallType'].str.contains('<>')]
+        if (len(id) == 0):
+            tmp_df = res_df[~res_df['CallCompCallType'].str.contains(row['CALL_COMP_CALL_TYPE']) & res_df[
+                'CallCompCallType'].str.contains('<>')]
+        return str(int(tmp_df['ChargFile_callType'])).zfill(2)
     else:
-        return res_df['ChargFile_callType']
+        print("Row 1...:", row[['ACCOUNT_NUMBER','CALL_TYPE','CREDIT_DEBIT_IND']])
+        return str(int(res_df['ChargFile_callType'])).zfill(2)
 
 #### PRI Accounts
 priAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(PRI_DIV) & clean_df['ACCOUNT_TYPE'].isin(['C', 'T'])
