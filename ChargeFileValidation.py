@@ -320,7 +320,7 @@ for file in a_chargeFilesList:
 a_recCount_df = pd.DataFrame(list(a_chargeFilesRecCntDict.items()), columns=['ChargeFileName','Actual_Count'])
 #print(a_recCount_df)
 
-
+### Build Data frame for BL_RATED
 fileType = os.path.basename(BL_RATED_filename).split('.')[1]
 #print("fileType:" + fileType)
 if (fileType == "csv"):
@@ -328,6 +328,7 @@ if (fileType == "csv"):
 else:
     df = pd.read_excel(BL_RATED_filename)
 
+### Load Reference table data
 BI_DF = pd.read_excel(BillingInfoFile, sheet_name='Information')
 #print("BI_DF:", BI_DF)
 
@@ -336,8 +337,6 @@ BHN_Ref_DF = pd.read_excel(BillingInfoFile, sheet_name='BHN_REF')
 clean_df = df[df['AR_ROUNDED_PRICE'] > 0]
 clean_df.ACCOUNT_NUMBER = clean_df.ACCOUNT_NUMBER.astype(np.int64)
 
-def getChargeCallType_BHN():
-    pass
 
 #### Division code
 PRI_DIV = ['CAR', 'CVG', 'MKC', 'CMH', 'NEW', 'CAK', 'HNL']
@@ -368,7 +367,7 @@ def createFile_ICOMS(row):
         filename = filename + ".BCPP"
     elif (row['SERVICE_TYPE'] == 'T'):
         filename = filename + ".PRIP"
-    print("Tax Ind:", row['TAX_INCLUSIVE_IND'])
+    #print("Tax Ind:", row['TAX_INCLUSIVE_IND'])
     if (row['TAX_INCLUSIVE_IND'] == 0):
         filename = filename + "taxed"
     else:
@@ -392,8 +391,8 @@ def createFile_ICOMS(row):
     if re.findall(r"OA8", row['CALL_TYPE']) and re.findall(r"LD4", row['CALL_COMP_CALL_TYPE']):
         filenum=8
     filename += str(filenum) + ".txt"
-    print (" ----")
-    print(filename)
+    #print (" ----")
+    #print(filename)
     return filename
 
 
@@ -411,13 +410,13 @@ def createFile_NS(row):
         filename = filename + ".NSBCP"
     elif (row['SERVICE_TYPE'] == 'T'):
         filename = filename + ".NSPRIP"
-    print("Tax Ind:", row['TAX_INCLUSIVE_IND'])
+    #print("Tax Ind:", row['TAX_INCLUSIVE_IND'])
     if (row['TAX_INCLUSIVE_IND'] == 0):
         filename = filename + "taxed"
     else:
         filename = filename + "untaxed"
     filenum=""
-    print("Call type: ",row['CALL_TYPE'])
+    #print("Call type: ",row['CALL_TYPE'])
     if re.findall(r"DA|CC|OA[1-6]", row['CALL_TYPE']):
         filenum=1
     if re.findall(r"LD4|LD5|LD6|INT|TERR[0-99]", row['CALL_TYPE']):
@@ -435,7 +434,7 @@ def createFile_NS(row):
     if re.findall(r"OA8", row['CALL_TYPE']) and re.findall(r"LD4", row['CALL_COMP_CALL_TYPE']):
         filenum=8
     filename += str(filenum) + ".txt"
-    print(filename)
+    #print(filename)
     return filename
 
 #### build CSG charge filename
@@ -468,8 +467,8 @@ def createFile_BHN(row):
 def getCallType_BHN(row):
     res_df = BHN_Ref_DF[(BHN_Ref_DF['CallType'] == row['CALL_TYPE']) &
                         (BHN_Ref_DF['CreditDebitInd'] == row['CREDIT_DEBIT_IND'])]
-    print("Row:", row[['ACCOUNT_NUMBER','CALL_TYPE','CREDIT_DEBIT_IND']])
-    print("res_df:", res_df['ChargFile_callType'])
+   # print("Row:", row[['ACCOUNT_NUMBER','CALL_TYPE','CREDIT_DEBIT_IND']])
+    #print("res_df:", res_df['ChargFile_callType'])
     if (len(res_df) > 1):
         tmp_df = res_df[res_df['CallCompCallType'].str.contains(row['CALL_COMP_CALL_TYPE']) & ~res_df['CallCompCallType'].str.contains('<>')]
         if (len(id) == 0):
@@ -477,21 +476,21 @@ def getCallType_BHN(row):
                 'CallCompCallType'].str.contains('<>')]
         return str(int(tmp_df['ChargFile_callType'])).zfill(2)
     else:
-        print("Row 1...:", row[['ACCOUNT_NUMBER','CALL_TYPE','CREDIT_DEBIT_IND']])
+        #print("Row 1...:", row[['ACCOUNT_NUMBER','CALL_TYPE','CREDIT_DEBIT_IND']])
         return str(int(res_df['ChargFile_callType'])).zfill(2)
 
 #### PRI Accounts
 priAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(PRI_DIV) & clean_df['ACCOUNT_TYPE'].isin(['C', 'T'])
                      & clean_df['SERVICE_TYPE'].isin(['T'])]
 if (len(priAcc_df)):
-    print("PRI Accounts")
+    #print("PRI Accounts")
     #print(priAcc_df[CHRG_KEYS])
     priAcc_df = priAcc_df.filter(ICOMS_KEYS)
     priAcc_df['fileTime'] = pd.to_datetime(priAcc_df['USAGE_CYCLE_END'])
     priAcc_df['fileTime'] = priAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     priAcc_df['CHG_FILENAME']= priAcc_df.apply(createFile_ICOMS, axis=1)
     priAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    resAcc_df['BILLER'] = "ICOMS_PRI"
+    priAcc_df['BILLER'] = "ICOMS_PRI"
     #print(priAcc_df)
 
 
@@ -564,7 +563,7 @@ if (len(primdetAcc_df)):
 #### National_PRI_Accounts
 npriAcc_df = clean_df[clean_df['ACCOUNT_TYPE'].isin(['N']) & clean_df['SERVICE_TYPE'].isin(['T'])]
 if (len(npriAcc_df)):
-    print("National_PRI_Accounts")
+    #print("National_PRI_Accounts")
     npriAcc_df = npriAcc_df.filter(ICOMS_KEYS)
     npriAcc_df['fileTime'] = pd.to_datetime(npriAcc_df['USAGE_CYCLE_END'])
     npriAcc_df['fileTime'] = npriAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
@@ -576,7 +575,7 @@ if (len(npriAcc_df)):
 #### National_BCP_Accounts
 nbcpAcc_df = clean_df[clean_df['ACCOUNT_TYPE'].isin(['N']) & clean_df['SERVICE_TYPE'].isin(['B', 'F'])]
 if (len(nbcpAcc_df)):
-    print("National_BCP_Accounts")
+    #print("National_BCP_Accounts")
     nbcpAcc_df = nbcpAcc_df.filter(ICOMS_KEYS)
     nbcpAcc_df['fileTime'] = pd.to_datetime(nbcpAcc_df['USAGE_CYCLE_END'])
     nbcpAcc_df['fileTime'] = nbcpAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
@@ -589,7 +588,7 @@ if (len(nbcpAcc_df)):
 bhnResAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(['BHN']) & clean_df['ACCOUNT_TYPE'].isin(['R'])
                         & clean_df['SERVICE_TYPE'].isin(['R'])]
 if (len(bhnResAcc_df)):
-    print("BHN_RES_Accounts")
+    #print("BHN_RES_Accounts")
     bhnResAcc_df = bhnResAcc_df.filter(ICOMS_KEYS)
     bhnResAcc_df['fileTime'] = pd.to_datetime(bhnResAcc_df['USAGE_CYCLE_END'])
     bhnResAcc_df['fileTime'] = bhnResAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
@@ -602,7 +601,7 @@ if (len(bhnResAcc_df)):
 bhnComAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(['BHN']) & clean_df['ACCOUNT_TYPE'].isin(['C','T'])
                         & clean_df['SERVICE_TYPE'].isin(['T', 'B'])]
 if (len(bhnComAcc_df)):
-    print("BHN_COM_Accounts")
+    #print("BHN_COM_Accounts")
     bhnComAcc_df = bhnComAcc_df.filter(ICOMS_KEYS)
     bhnComAcc_df['fileTime'] = pd.to_datetime(bhnComAcc_df['USAGE_CYCLE_END'])
     bhnComAcc_df['fileTime'] = bhnComAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
@@ -641,7 +640,7 @@ a_BHN_df['ChargeNumber'] = a_BHN_df.ChargeNumber.astype(np.int64)
 a_BHN_df.rename(columns={'AccountNum':'ACCOUNT_NUMBER',
                            'ChargeNumber':'CHARGE_NUMBER'}, inplace=True)
 a_BHN_df_new = pd.merge(a_BHN_df, exp_bhn_df, how='outer', on=['CHARGE_NUMBER'])
-print(sum_result_df)
+#print(sum_result_df)
 
 ### Write to output file
 try :
