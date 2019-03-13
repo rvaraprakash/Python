@@ -86,6 +86,8 @@ a_chargeFilesRecSpltDict = {}
 a_BHN_df = pd.DataFrame(columns=['FileName','AccountNum','ChargeNumber','Amount','CallType','Service'])
 a_CSG_df = pd.DataFrame(columns=['FileName','AccountNum','ChargeNumber','Amount','CallType','AccType'])
 a_ICOMS_df = pd.DataFrame(columns=['FileName','CreditDebitInd','AccountNum','ChargeNumber','Amount'])
+a_NYC_df = pd.DataFrame(columns=['FileName','Division','AccountNum','ChargeNumber','DialedDigit',
+                                 'CallType','Account_Flag','ServiceCode','Amount'])
 
 
 ### If charge file specified
@@ -146,7 +148,7 @@ def parseRecords_BHN(file):
                 'Service':l_service}
 
     tmp_df = pd.DataFrame.from_dict(bhn_dict)
-    a_BHN_df = pd.concat([a_BHN_df, tmp_df])
+    a_BHN_df = pd.concat([a_BHN_df, tmp_df], sort=True)
     #print("a_BHN_df:", a_BHN_df)
 
 def parseRecords_ICOMS(file):
@@ -229,6 +231,8 @@ def parseRecords_CSG(file):
 
 def parseRecords_NYC(file):
     key = os.path.basename(file)
+    if (key.split('.')[1] == 'job'):
+        return
     recs = a_chargeFilesRecDict[key]
     global a_NYC_df
     l_accNum = list()
@@ -238,34 +242,38 @@ def parseRecords_NYC(file):
     l_servCode = list()
     l_amount = list()
     l_callType = list()
-    l_accType = list()
+    l_division = list()
     l_fileName = list()
+    l_callDuration = list()
     for rec in recs:
-        #print(rec)
-        if re.findall(r",0", rec):
+        rec = rec.strip('\n')
+        #print("rec:",rec,":")
+        if len(rec) == 2:
             print("Header:" + rec)
             l_header = rec
         else:
             print("Actual Record:" + rec)
+            l_division.append(rec.split(',')[1])
             l_accNum.append(rec.split(',')[4])
             l_chgrNum.append(rec.split(',')[5])
-            l_dialDigit.append(rec.split(',')[29])
-            l_callType.append(rec.split(',')[29])
-            l_resComFlag.append(rec.split(',')[29])
-            l_servCode.append(rec.split(',')[29])
-            l_amount.append(rec.split(',')[5])
+            l_dialDigit.append(rec.split(',')[28])
+            l_callType.append(rec.split(',')[94])
+            l_resComFlag.append(rec.split(',')[97])
+            l_servCode.append(rec.split(',')[99])
+            l_amount.append(rec.split(',')[123])
             l_fileName.append(key)
     ### From Dict
-    csg_dict = {'FileName': l_fileName,
+    nyc_dict = {'FileName': l_fileName,
+                'Division': l_division,
                 'AccountNum':l_accNum,
                 'ChargeNumber': l_chgrNum,
                 'DialedDigit':l_dialDigit,
                 'CallType': l_callType,
+                'Account_Flag': l_resComFlag,
                 'ServiceCode': l_servCode,
-                'Amount': l_amount,
-                'AccType':l_accType}
+                'Amount': l_amount}
 
-    tmp_df = pd.DataFrame.from_dict(csg_dict)
+    tmp_df = pd.DataFrame.from_dict(nyc_dict)
     a_NYC_df = pd.concat([a_NYC_df, tmp_df], sort=False)
     #print("a_NYC_df:", a_NYC_df)
 
@@ -303,6 +311,7 @@ def parseFile_CSG(file):
 def parseFile_NYC(file):
     #print ("Parsing NYC file:" + file)
     addToMap(file)
+    parseRecords_NYC(file)
     key = os.path.basename(file)
     ### Remove one header count
     recCount = str(len(a_chargeFilesRecDict[key]) - 1 )
@@ -360,7 +369,8 @@ PRISM_DIV = ['NAT', 'NTX', 'SAN', 'STX', 'LNK', 'LXM', 'CTX', 'HWI']
 PRIMDEV_DIV = ['NYC']
 
 ###Key fields
-CHRG_KEYS = ['BILLER','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'ACCOUNT_TYPE', 'AR_ROUNDED_PRICE', 'CALL_TYPE','CREDIT_DEBIT_IND','CHG_FILENAME']
+CHRG_KEYS = ['BILLER','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'ACCOUNT_TYPE', 'AR_ROUNDED_PRICE', 'CALL_TYPE',
+             'CALL_COMP_CALL_TYPE','CREDIT_DEBIT_IND','CHG_FILENAME']
 ACC_SERV_KEYS = ['ACCOUNT_TYPE', 'SERVICE_TYPE']
 ICOMS_KEYS = ['FINANCE_ENTITY', 'CREDIT_DEBIT_IND','ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE', 'SERVICE_TYPE', 'CALL_TYPE', 'CALL_COMP_CALL_TYPE',
               'TAX_INCLUSIVE_IND','AR_ROUNDED_PRICE','USAGE_CYCLE_END']
@@ -474,6 +484,15 @@ def createFile_BHN(row):
     filename = filename + row['fileTime']
     filename += "xxxx.txt"
     return filename
+
+### BHN Call Type mapping
+def getCallType_BHN(row):
+    res_df = BHN_Ref_DF[(BHN_Ref_DF['CallType'] == row['CALL_TYPE']) &
+                        (BHN_Ref_DF['CreditDebitInd'] == row['CREDIT_DEBIT_IND'])]
+    if (len(res_df) > 1):
+        pass
+    else:
+        return res_df['ChargFile_callType']
 
 #### PRI Accounts
 priAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(PRI_DIV) & clean_df['ACCOUNT_TYPE'].isin(['C', 'T'])
@@ -626,18 +645,30 @@ filesCount_df = filesCount_df.to_frame().reset_index()
 filesCount_df.columns = ['BILLER','ChargeFileName', 'Exp_RecordsCount']
 
 sum_result_df = pd.merge(filesCount_df,a_recCount_df, how='outer', on=['ChargeFileName'])
+bhn_RefCol = ['ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE','CALL_TYPE','CALL_COMP_CALL_TYPE','CREDIT_DEBIT_IND','Exp_AR_ROUNDED_PRICE']
+exp_bhn_df = res_df.filter(bhn_RefCol)
+exp_bhn_df['CALL_TYPE'] = exp_bhn_df.apply(getCallType_BHN, axis=1)
+exp_bhn_df['Exp_AR_ROUNDED_PRICE'] = exp_bhn_df['Exp_AR_ROUNDED_PRICE'].\
+    apply(lambda x: (str(format(x, '.2f')).split('.')[0]+str(format(x,'.2f')).split('.')[1]).zfill(7))
+a_BHN_df['AccountNum'] = a_BHN_df.AccountNum.astype(np.int64)
+a_BHN_df['ChargeNumber'] = a_BHN_df.ChargeNumber.astype(np.int64)
+a_BHN_df.rename(columns={'AccountNum':'ACCOUNT_NUMBER',
+                           'ChargeNumber':'CHARGE_NUMBER'}, inplace=True)
+a_BHN_df_new = pd.merge(a_BHN_df, exp_bhn_df, how='outer', on=['CHARGE_NUMBER'])
 print(sum_result_df)
 
 ### Write to output file
 try :
     writer = pd.ExcelWriter(OUTPUT_FILE, engine='xlsxwriter')
     sum_result_df.to_excel(writer,'Summary', index=False)
-    if (len(a_BHN_df) > 1 ):
-        a_BHN_df.to_excel(writer,'BHN', index=False)
+    if (len(a_BHN_df_new) > 1 ):
+        a_BHN_df_new.to_excel(writer,'BHN', index=False)
     if (len(a_CSG_df) > 1 ):
         a_CSG_df.to_excel(writer,'CSG', index=False)
     if (len(a_ICOMS_df) > 1 ):
         a_ICOMS_df.to_excel(writer,'TWC_ICOMS', index=False)
+    if (len(a_NYC_df) > 1 ):
+        a_NYC_df.to_excel(writer,'NYC', index=False)
     all_df.to_excel(writer, 'All_Records', index=False)
     res_df.to_excel(writer, 'Aggr_Records', index=False)
     writer.save()
