@@ -10,7 +10,8 @@ import xlsxwriter
 from os.path import isfile, join
 import os
 
-confFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BHN_CHG\Vara.txt"
+#confFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BHN_CHG\Vara.txt"
+confFile="Vara.txt"
 
 OUTPUT_FILE = "ChargeFileValidation.xlsx" ### Default value
 
@@ -624,16 +625,18 @@ new_df = charge_df.groupby(['ACCOUNT_NUMBER', 'CHARGE_NUMBER'], as_index=False)[
 res_df = pd.merge(charge_df,new_df, on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
 res_df.drop('AR_ROUNDED_PRICE_x', axis=1, inplace=True)
 res_df.drop_duplicates(inplace=True)
-res_df.rename(columns={'AR_ROUNDED_PRICE_y':'Exp_AR_ROUNDED_PRICE'}, inplace=True)
-filesCount_df = res_df.groupby(['BILLER','CHG_FILENAME']).count()['Exp_AR_ROUNDED_PRICE']
+res_df.rename(columns={'AR_ROUNDED_PRICE_y':'AR_ROUNDED_PRICE'}, inplace=True)
+res_df = res_df[['BILLER','ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE','CALL_TYPE','CALL_COMP_CALL_TYPE',
+                 'CREDIT_DEBIT_IND','AR_ROUNDED_PRICE','CHG_FILENAME']]
+filesCount_df = res_df.groupby(['BILLER','CHG_FILENAME']).count()['AR_ROUNDED_PRICE']
 filesCount_df = filesCount_df.to_frame().reset_index()
-filesCount_df.columns = ['BILLER','ChargeFileName', 'Exp_RecordsCount']
+filesCount_df.columns = ['BILLER','ChargeFileName', 'RecordsCount']
 
 sum_result_df = pd.merge(filesCount_df,a_recCount_df, how='outer', on=['ChargeFileName'])
-bhn_RefCol = ['ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE','CALL_TYPE','CALL_COMP_CALL_TYPE','CREDIT_DEBIT_IND','Exp_AR_ROUNDED_PRICE']
+bhn_RefCol = ['ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE','CALL_TYPE','CALL_COMP_CALL_TYPE','CREDIT_DEBIT_IND','AR_ROUNDED_PRICE']
 exp_bhn_df = res_df.filter(bhn_RefCol)
 exp_bhn_df['CALL_TYPE'] = exp_bhn_df.apply(getCallType_BHN, axis=1)
-exp_bhn_df['Exp_AR_ROUNDED_PRICE'] = exp_bhn_df['Exp_AR_ROUNDED_PRICE'].\
+exp_bhn_df['AR_ROUNDED_PRICE'] = exp_bhn_df['AR_ROUNDED_PRICE'].\
     apply(lambda x: (str(format(x, '.2f')).split('.')[0]+str(format(x,'.2f')).split('.')[1]).zfill(7))
 a_BHN_df['AccountNum'] = a_BHN_df.AccountNum.astype(np.int64)
 a_BHN_df['ChargeNumber'] = a_BHN_df.ChargeNumber.astype(np.int64)
@@ -657,8 +660,9 @@ try :
     all_df.to_excel(writer, 'All_Records', index=False)
     res_df.to_excel(writer, 'Aggr_Records', index=False)
     writer.save()
-except PermissionError:
-    print("\nERROR:")
+
+except Exception as e:
+    print("\nERROR:", e)
     print("Please close file:'" + os.path.basename(OUTPUT_FILE) + "' and try again")
     exit(-1)
 
