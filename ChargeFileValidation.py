@@ -10,14 +10,18 @@ import xlsxwriter
 from os.path import isfile, join
 import os
 
-#confFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BHN_CHG\Vara.txt"
-confFile="Vara.txt"
+confFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\BHN_CHG\Vara.txt"
+#confFile="Vara.txt"
 
 OUTPUT_FILE = "ChargeFileValidation.xlsx" ### Default value
 
-fh = open(confFile)
-lines = [line for line in fh.readlines() if line.strip('\n')]
-fh.close()
+try:
+    fh = open(confFile)
+    lines = [line for line in fh.readlines() if line.strip('\n')]
+    fh.close()
+except FileNotFoundError:
+    print(confFile, ": File Not found, please check and try again")
+    exit (-1)
 
 #### Read Configuration file
 for curline in lines:
@@ -318,7 +322,9 @@ for file in a_chargeFilesList:
         parseFile_NYC(file)
     else:
         print("INVALID FILE:" + file)
-a_recCount_df = pd.DataFrame(list(a_chargeFilesRecCntDict.items()), columns=['ChargeFileName','Actual_Count'])
+
+if a_chargeFilesRecCntDict:
+    a_recCount_df = pd.DataFrame(list(a_chargeFilesRecCntDict.items()), columns=['ChargeFileName','Actual_Count'])
 #print(a_recCount_df)
 
 ### Build Data frame for BL_RATED
@@ -480,16 +486,24 @@ def getCallType_BHN(row):
         #print("Row 1...:", row[['ACCOUNT_NUMBER','CALL_TYPE','CREDIT_DEBIT_IND']])
         return str(int(res_df['ChargFile_callType'])).zfill(2)
 
+### BHN Service Type mapping
+def getServiceType_BHN(row):
+    if row['SERVICE_TYPE'] == 'B':
+        return row['ACCOUNT_TYPE']
+    else:
+        return row['SERVICE_TYPE']
+
 ### Compare results
 def compareResults(row):
-    if ((row['Amount']==row['Exp_AR_ROUNDED_PRICE']) &
-        (row['CallType']==row['Exp_CALL_TYPE']) &
-        (row['Service']==row['Exp_SERVICE_TYPE'])):
-        #print "PASS"
-        return "PASS"
-    else:
-        #print "FAIL"
-        return "FAIL"
+    if row['BILLER'] == 'BHN':
+        if ((row['Amount']==row['Exp_AR_ROUNDED_PRICE']) &
+            #(row['CallType']==row['Exp_CALL_TYPE']) &
+            (row['Service']==row['Exp_SERVICE_TYPE'])):
+            #print "PASS"
+            return "PASS"
+        else:
+            #print "FAIL"
+            return "FAIL"
 
 
 #### PRI Accounts
@@ -503,7 +517,7 @@ if (len(priAcc_df)):
     priAcc_df['fileTime'] = priAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     priAcc_df['CHG_FILENAME']= priAcc_df.apply(createFile_ICOMS, axis=1)
     priAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    priAcc_df['BILLER'] = "ICOMS_PRI"
+    priAcc_df['BILLER'] = "ICOMS"
     #print(priAcc_df)
 
 
@@ -517,7 +531,7 @@ if (len(resAcc_df)):
     resAcc_df['fileTime'] = resAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     resAcc_df['CHG_FILENAME']= resAcc_df.apply(createFile_ICOMS, axis=1)
     resAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    resAcc_df['BILLER'] = "ICOMS_RES"
+    resAcc_df['BILLER'] = "ICOMS"
     #print(resAcc_df)
 
 #### BCP Accounts
@@ -530,7 +544,7 @@ if (len(bcpAcc_df)):
     bcpAcc_df['fileTime'] = bcpAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     bcpAcc_df['CHG_FILENAME'] = bcpAcc_df.apply(createFile_ICOMS, axis=1)
     bcpAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    bcpAcc_df['BILLER'] = "ICOMS_BCP"
+    bcpAcc_df['BILLER'] = "ICOMS"
     #print(bcpAcc_df)
 
 
@@ -544,7 +558,7 @@ if (len(trksumAcc_df)):
     trksumAcc_df['fileTime'] = trksumAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     trksumAcc_df['CHG_FILENAME'] = trksumAcc_df.apply(createFile_CSG, axis=1)
     trksumAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    trksumAcc_df['BILLER'] = "CSG_TRKSUM"
+    trksumAcc_df['BILLER'] = "CSG"
     #print(trksumAcc_df)
 
 #### Primsum_Accounts
@@ -557,7 +571,7 @@ if (len(primsumAcc_df)):
     primsumAcc_df['fileTime'] = primsumAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     primsumAcc_df['CHG_FILENAME'] = primsumAcc_df.apply(createFile_CSG, axis=1)
     primsumAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    primsumAcc_df['BILLER'] = "CSG_PRIMSUM"
+    primsumAcc_df['BILLER'] = "CSG"
     #print(primsumAcc_df)
 
 #### PrimdetNYC_Accounts
@@ -643,32 +657,58 @@ res_df = res_df[['BILLER','ACCOUNT_NUMBER','CHARGE_NUMBER','SERVICE_TYPE','ACCOU
                  'CREDIT_DEBIT_IND','AR_ROUNDED_PRICE','CHG_FILENAME']]
 filesCount_df = res_df.groupby(['BILLER','CHG_FILENAME']).count()['AR_ROUNDED_PRICE']
 filesCount_df = filesCount_df.to_frame().reset_index()
-filesCount_df.columns = ['BILLER','ChargeFileName', 'RecordsCount']
+filesCount_df.columns = ['BILLER','ChargeFileName', 'Exp_RecordsCount']
 
-sum_result_df = pd.merge(filesCount_df,a_recCount_df, how='outer', on=['ChargeFileName'])
-exp_bhn_RefCol = ['ACCOUNT_NUMBER','CHARGE_NUMBER','SERVICE_TYPE','ACCOUNT_TYPE','CALL_TYPE','CREDIT_DEBIT_IND','AR_ROUNDED_PRICE']
-exp_bhn_df = res_df.filter(exp_bhn_RefCol)
-exp_bhn_df['CALL_TYPE'] = exp_bhn_df.apply(getCallType_BHN, axis=1)
-exp_bhn_df['AR_ROUNDED_PRICE'] = exp_bhn_df['AR_ROUNDED_PRICE'].\
-    apply(lambda x: (str(format(x, '.2f')).split('.')[0]+str(format(x,'.2f')).split('.')[1]).zfill(7))
-exp_bhn_df.drop('CREDIT_DEBIT_IND', axis=1, inplace=True)
-a_BHN_df['AccountNum'] = a_BHN_df.AccountNum.astype(np.int64)
-a_BHN_df['ChargeNumber'] = a_BHN_df.ChargeNumber.astype(np.int64)
-a_BHN_df.rename(columns={'AccountNum':'ACCOUNT_NUMBER',
-                           'ChargeNumber':'CHARGE_NUMBER'}, inplace=True)
-exp_bhn_df.rename(columns={'SERVICE_TYPE':'Exp_SERVICE_TYPE',
-                           'CALL_TYPE':'Exp_CALL_TYPE',
-                           'AR_ROUNDED_PRICE':'Exp_AR_ROUNDED_PRICE'}, inplace=True)
-a_BHN_df = pd.merge(a_BHN_df, exp_bhn_df, how='outer', on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
-a_BHN_df['Result'] = a_BHN_df.apply(compareResults, axis=1)
+def summaryResult(row):
+    if row['Exp_RecordsCount'] == row['Actual_Count']: return "PASS"
+    else: return "FAIL"
+
+if 'a_recCount_df' in locals():
+    sum_result_df = pd.merge(filesCount_df,a_recCount_df, how='outer', on=['ChargeFileName'])
+    sum_result_df['Exp_RecordsCount'] = sum_result_df.Exp_RecordsCount.astype(str)
+    sum_result_df['Result'] = sum_result_df.apply(summaryResult, axis=1)
+else:
+    sum_result_df = filesCount_df
+
+#### BHN Data mapping
+exp_bhn_df = pd.DataFrame()
+BHN_df = pd.DataFrame()
+if res_df.iloc[0]['BILLER'] == 'BHN':
+    exp_bhn_RefCol = ['BILLER','ACCOUNT_NUMBER','CHARGE_NUMBER','SERVICE_TYPE','ACCOUNT_TYPE','CALL_TYPE',
+                      'CREDIT_DEBIT_IND','AR_ROUNDED_PRICE']
+    exp_bhn_df = res_df.filter(exp_bhn_RefCol)
+    exp_bhn_df['CALL_TYPE'] = exp_bhn_df.apply(getCallType_BHN, axis=1)
+    exp_bhn_df['SERVICE_TYPE'] = exp_bhn_df.apply(getServiceType_BHN, axis=1)
+    exp_bhn_df['AR_ROUNDED_PRICE'] = exp_bhn_df['AR_ROUNDED_PRICE'].\
+        apply(lambda x: (str(format(x, '.2f')).split('.')[0]+str(format(x,'.2f')).split('.')[1]).zfill(7))
+    exp_bhn_df.drop(['CREDIT_DEBIT_IND','ACCOUNT_TYPE'], axis=1, inplace=True)
+    exp_bhn_df.rename(columns={'SERVICE_TYPE':'Exp_SERVICE_TYPE',
+                                   'CALL_TYPE':'Exp_CALL_TYPE',
+                                   'AR_ROUNDED_PRICE':'Exp_AR_ROUNDED_PRICE'}, inplace=True)
+    #exp_bhn_df.drop('CALL_TYPE',axis=1, inplace=True)
+
+try:
+    if a_BHN_df.empty != True:
+        a_BHN_df['AccountNum'] = a_BHN_df.AccountNum.astype(np.int64)
+        a_BHN_df['ChargeNumber'] = a_BHN_df.ChargeNumber.astype(np.int64)
+        a_BHN_df.rename(columns={'AccountNum':'ACCOUNT_NUMBER',
+                                   'ChargeNumber':'CHARGE_NUMBER'}, inplace=True)
+
+
+        BHN_df = pd.merge(a_BHN_df, exp_bhn_df, how='outer', on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
+        BHN_df['Result'] = BHN_df.apply(compareResults, axis=1)
+    else:
+        BHN_df = exp_bhn_df
+except AttributeError:
+    pass
 #print(sum_result_df)
 
 ### Write to output file
 try :
     writer = pd.ExcelWriter(OUTPUT_FILE, engine='xlsxwriter')
-    sum_result_df.to_excel(writer,'Summary', index=False)
-    if (len(a_BHN_df) > 1 ):
-        a_BHN_df.to_excel(writer,'BHN', index=False)
+    sum_result_df.to_excel(writer,'RecCount Summary', index=False)
+    if (len(BHN_df) > 1 ):
+        BHN_df.to_excel(writer,'BHN', index=False)
     if (len(a_CSG_df) > 1 ):
         a_CSG_df.to_excel(writer,'CSG', index=False)
     if (len(a_ICOMS_df) > 1 ):
@@ -678,6 +718,11 @@ try :
     all_df.to_excel(writer, 'All_Records', index=False)
     res_df.to_excel(writer, 'Aggr_Records', index=False)
     writer.save()
+
+except PermissionError:
+    print("\nERROR:")
+    print("Please close file:'" + os.path.basename(OUTPUT_FILE) + "' and try again")
+    exit(-1)
 
 except Exception as e:
     print("\nERROR:", e)
