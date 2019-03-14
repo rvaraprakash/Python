@@ -348,7 +348,7 @@ PRISM_DIV = ['NAT', 'NTX', 'SAN', 'STX', 'LNK', 'LXM', 'CTX', 'HWI']
 PRIMDEV_DIV = ['NYC']
 
 ###Key fields
-CHRG_KEYS = ['BILLER','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'ACCOUNT_TYPE', 'AR_ROUNDED_PRICE', 'CALL_TYPE',
+CHRG_KEYS = ['BILLER','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'SERVICE_TYPE','ACCOUNT_TYPE', 'AR_ROUNDED_PRICE', 'CALL_TYPE',
              'CALL_COMP_CALL_TYPE','CREDIT_DEBIT_IND','CHG_FILENAME']
 ACC_SERV_KEYS = ['ACCOUNT_TYPE', 'SERVICE_TYPE']
 ICOMS_KEYS = ['FINANCE_ENTITY', 'CREDIT_DEBIT_IND','ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE', 'SERVICE_TYPE', 'CALL_TYPE', 'CALL_COMP_CALL_TYPE',
@@ -479,6 +479,18 @@ def getCallType_BHN(row):
     else:
         #print("Row 1...:", row[['ACCOUNT_NUMBER','CALL_TYPE','CREDIT_DEBIT_IND']])
         return str(int(res_df['ChargFile_callType'])).zfill(2)
+
+### Compare results
+def compareResults(row):
+    if ((row['Amount']==row['Exp_AR_ROUNDED_PRICE']) &
+        (row['CallType']==row['Exp_CALL_TYPE']) &
+        (row['Service']==row['Exp_SERVICE_TYPE'])):
+        #print "PASS"
+        return "PASS"
+    else:
+        #print "FAIL"
+        return "FAIL"
+
 
 #### PRI Accounts
 priAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(PRI_DIV) & clean_df['ACCOUNT_TYPE'].isin(['C', 'T'])
@@ -626,31 +638,37 @@ res_df = pd.merge(charge_df,new_df, on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
 res_df.drop('AR_ROUNDED_PRICE_x', axis=1, inplace=True)
 res_df.drop_duplicates(inplace=True)
 res_df.rename(columns={'AR_ROUNDED_PRICE_y':'AR_ROUNDED_PRICE'}, inplace=True)
-res_df = res_df[['BILLER','ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE','CALL_TYPE','CALL_COMP_CALL_TYPE',
+
+res_df = res_df[['BILLER','ACCOUNT_NUMBER','CHARGE_NUMBER','SERVICE_TYPE','ACCOUNT_TYPE','CALL_TYPE','CALL_COMP_CALL_TYPE',
                  'CREDIT_DEBIT_IND','AR_ROUNDED_PRICE','CHG_FILENAME']]
 filesCount_df = res_df.groupby(['BILLER','CHG_FILENAME']).count()['AR_ROUNDED_PRICE']
 filesCount_df = filesCount_df.to_frame().reset_index()
 filesCount_df.columns = ['BILLER','ChargeFileName', 'RecordsCount']
 
 sum_result_df = pd.merge(filesCount_df,a_recCount_df, how='outer', on=['ChargeFileName'])
-bhn_RefCol = ['ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE','CALL_TYPE','CALL_COMP_CALL_TYPE','CREDIT_DEBIT_IND','AR_ROUNDED_PRICE']
-exp_bhn_df = res_df.filter(bhn_RefCol)
+exp_bhn_RefCol = ['ACCOUNT_NUMBER','CHARGE_NUMBER','SERVICE_TYPE','ACCOUNT_TYPE','CALL_TYPE','CREDIT_DEBIT_IND','AR_ROUNDED_PRICE']
+exp_bhn_df = res_df.filter(exp_bhn_RefCol)
 exp_bhn_df['CALL_TYPE'] = exp_bhn_df.apply(getCallType_BHN, axis=1)
 exp_bhn_df['AR_ROUNDED_PRICE'] = exp_bhn_df['AR_ROUNDED_PRICE'].\
     apply(lambda x: (str(format(x, '.2f')).split('.')[0]+str(format(x,'.2f')).split('.')[1]).zfill(7))
+exp_bhn_df.drop('CREDIT_DEBIT_IND', axis=1, inplace=True)
 a_BHN_df['AccountNum'] = a_BHN_df.AccountNum.astype(np.int64)
 a_BHN_df['ChargeNumber'] = a_BHN_df.ChargeNumber.astype(np.int64)
 a_BHN_df.rename(columns={'AccountNum':'ACCOUNT_NUMBER',
                            'ChargeNumber':'CHARGE_NUMBER'}, inplace=True)
-a_BHN_df_new = pd.merge(a_BHN_df, exp_bhn_df, how='outer', on=['CHARGE_NUMBER'])
+exp_bhn_df.rename(columns={'SERVICE_TYPE':'Exp_SERVICE_TYPE',
+                           'CALL_TYPE':'Exp_CALL_TYPE',
+                           'AR_ROUNDED_PRICE':'Exp_AR_ROUNDED_PRICE'}, inplace=True)
+a_BHN_df = pd.merge(a_BHN_df, exp_bhn_df, how='outer', on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
+a_BHN_df['Result'] = a_BHN_df.apply(compareResults, axis=1)
 #print(sum_result_df)
 
 ### Write to output file
 try :
     writer = pd.ExcelWriter(OUTPUT_FILE, engine='xlsxwriter')
     sum_result_df.to_excel(writer,'Summary', index=False)
-    if (len(a_BHN_df_new) > 1 ):
-        a_BHN_df_new.to_excel(writer,'BHN', index=False)
+    if (len(a_BHN_df) > 1 ):
+        a_BHN_df.to_excel(writer,'BHN', index=False)
     if (len(a_CSG_df) > 1 ):
         a_CSG_df.to_excel(writer,'CSG', index=False)
     if (len(a_ICOMS_df) > 1 ):
