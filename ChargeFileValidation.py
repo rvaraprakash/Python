@@ -33,11 +33,11 @@ for curline in lines:
         res = curline.split('=')
         if (res[0].strip() == 'BL_RATED'):
             BL_RATED_filename = res[1].strip('\n')
-            BL_RATED_filename = BL_RATED_filename.strip()
             BL_RATED_filename = BL_RATED_filename.strip('"')
-            print("BL_RATED_filename:", BL_RATED_filename, ":")
+            BL_RATED_filename = BL_RATED_filename.strip()
+            print("BL_RATED_filename:",BL_RATED_filename,":")
             if os.path.exists(BL_RATED_filename) != True:
-                print("File not exists:'", BL_RATED_filename, "'")
+                print("File not exists:'",BL_RATED_filename,"'")
                 exit(-1)
         elif (res[0].strip() == 'CHARGE_FILES_PATH'):
             CHARGE_FILES_PATH = res[1].strip('\n')
@@ -328,6 +328,7 @@ if a_chargeFilesRecCntDict:
 #print(a_recCount_df)
 
 ### Build Data frame for BL_RATED
+
 fileType = os.path.basename(BL_RATED_filename).split('.')[1]
 #print("fileType:" + fileType)
 if (fileType == "csv"):
@@ -385,7 +386,7 @@ def createFile_ICOMS(row):
         filenum=1
     if re.findall(r"LD4|LD5|LD6|INT|TERR[0-99]", row['CALL_TYPE']):
         filenum=2
-    if re.findall(r"LOC1|LD1", row['CALL_TYPE']):
+    if re.findall(r"LOCT1|LD1", row['CALL_TYPE']):
         filenum=3
     if re.findall(r"LOCT2|LD2|LD3|LD7", row['CALL_TYPE']):
         filenum=4
@@ -428,7 +429,7 @@ def createFile_NS(row):
         filenum=1
     if re.findall(r"LD4|LD5|LD6|INT|TERR[0-99]", row['CALL_TYPE']):
         filenum=2
-    if re.findall(r"LOC1|LD1", row['CALL_TYPE']):
+    if re.findall(r"LOCT1|LD1", row['CALL_TYPE']):
         filenum=3
     if re.findall(r"LOCT2|LD2|LD3|LD7", row['CALL_TYPE']):
         filenum=4
@@ -457,6 +458,14 @@ def createFile_CSG(row):
     filename = filename + "." + row['fileTime']
     filename += "001.dat"
     return filename
+
+#### build CSG charge filename
+def createFile_CSG_NYC(row):
+    filename = "twnyc1p.bu0.primalv00.rated."
+    filename = filename + "." + row['fileTime']
+    filename += "001.dat"
+    return filename
+
 
 #### build BHN charge filename
 def createFile_BHN(row):
@@ -582,9 +591,9 @@ if (len(primdetAcc_df)):
     primdetAcc_df = primdetAcc_df.filter(ICOMS_KEYS)
     primdetAcc_df['fileTime'] = pd.to_datetime(primdetAcc_df['USAGE_CYCLE_END'])
     primdetAcc_df['fileTime'] = primdetAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
-    primdetAcc_df['CHG_FILENAME'] = primdetAcc_df.apply(createFile_CSG, axis=1)
+    primdetAcc_df['CHG_FILENAME'] = primdetAcc_df.apply(createFile_CSG_NYC, axis=1)
     primdetAcc_df.drop(['fileTime'], axis=1, inplace=True)
-    primdetAcc_df['BILLER'] = "CSG_NYC"
+    primdetAcc_df['BILLER'] = "CSG"
     #print(primdetAcc_df)
 
 #### National_PRI_Accounts
@@ -701,6 +710,39 @@ try:
         BHN_df = exp_bhn_df
 except AttributeError:
     pass
+
+
+#### CSG Data mapping
+exp_csg_df = pd.DataFrame()
+CSG_df = pd.DataFrame()
+if res_df.iloc[0]['BILLER'] == 'CSG':
+    exp_csg_RefCol = ['BILLER','ACCOUNT_NUMBER','CHARGE_NUMBER','SERVICE_TYPE','ACCOUNT_TYPE','CALL_TYPE',
+                      'CREDIT_DEBIT_IND','AR_ROUNDED_PRICE']
+    exp_csg_df = res_df.filter(exp_csg_RefCol)
+    #exp_csg_df['CALL_TYPE'] = exp_csg_df.apply(getCallType_BHN, axis=1)
+    #exp_csg_df['SERVICE_TYPE'] = exp_csg_df.apply(getServiceType_BHN, axis=1)
+    #exp_csg_df['AR_ROUNDED_PRICE'] = exp_csg_df['AR_ROUNDED_PRICE'].\
+     #   apply(lambda x: (str(format(x, '.2f')).split('.')[0]+str(format(x,'.2f')).split('.')[1]).zfill(7))
+    #exp_csg_df.drop(['CREDIT_DEBIT_IND','ACCOUNT_TYPE'], axis=1, inplace=True)
+    exp_csg_df.rename(columns={'SERVICE_TYPE':'Exp_SERVICE_TYPE',
+                                   'CALL_TYPE':'Exp_CALL_TYPE',
+                                   'AR_ROUNDED_PRICE':'Exp_AR_ROUNDED_PRICE'}, inplace=True)
+    #exp_bhn_df.drop('CALL_TYPE',axis=1, inplace=True)
+
+try:
+    if a_CSG_df.empty != True:
+        a_CSG_df['AccountNum'] = a_CSG_df.AccountNum.astype(np.int64)
+        a_CSG_df['ChargeNumber'] = a_CSG_df.ChargeNumber.astype(np.int64)
+        a_CSG_df.rename(columns={'AccountNum':'ACCOUNT_NUMBER',
+                                   'ChargeNumber':'CHARGE_NUMBER'}, inplace=True)
+
+        print("Colmn:",exp_csg_df.columns)
+        CSG_df = pd.merge(a_CSG_df, exp_csg_df, how='outer', on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
+        CSG_df['Result'] = CSG_df.apply(compareResults, axis=1)
+    else:
+        CSG_df = exp_csg_df
+except AttributeError:
+    pass
 #print(sum_result_df)
 
 ### Write to output file
@@ -709,8 +751,8 @@ try :
     sum_result_df.to_excel(writer,'RecCount Summary', index=False)
     if (len(BHN_df) > 1 ):
         BHN_df.to_excel(writer,'BHN', index=False)
-    if (len(a_CSG_df) > 1 ):
-        a_CSG_df.to_excel(writer,'CSG', index=False)
+    if (len(CSG_df) > 1 ):
+        CSG_df.to_excel(writer,'CSG', index=False)
     if (len(a_ICOMS_df) > 1 ):
         a_ICOMS_df.to_excel(writer,'TWC_ICOMS', index=False)
     if (len(a_NYC_df) > 1 ):
