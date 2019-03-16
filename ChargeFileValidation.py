@@ -1,3 +1,11 @@
+"""
+#####################################################################################
+###### Charge files validation script ###############################################
+###### Auther: Varaprakash Reddy      ###############################################
+###### Date: Mar-15-2019             ################################################
+#####################################################################################
+"""
+
 import numpy as np
 
 import pandas as pd
@@ -84,13 +92,13 @@ PRISM_DIV = ['NAT', 'NTX', 'SAN', 'STX', 'LNK', 'LXM', 'CTX', 'HWI']
 PRIMDEV_DIV = ['NYC']
 
 ###Key fields
-CHRG_KEYS = ['BILLER','FINANCE_ENTITY','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'SERVICE_TYPE','ACCOUNT_TYPE', 'AR_ROUNDED_PRICE', 'CALL_TYPE',
+CHRG_KEYS = ['BILLER','FINANCE_ENTITY','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'AR_RATE_SHEET', 'SERVICE_TYPE','ACCOUNT_TYPE', 'AR_ROUNDED_PRICE', 'CALL_TYPE',
              'CALL_COMP_CALL_TYPE','CREDIT_DEBIT_IND','CHG_FILENAME']
 ACC_SERV_KEYS = ['ACCOUNT_TYPE', 'SERVICE_TYPE']
 ICOMS_KEYS = ['FINANCE_ENTITY', 'CREDIT_DEBIT_IND','ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE', 'SERVICE_TYPE', 'CALL_TYPE', 'CALL_COMP_CALL_TYPE',
-              'TAX_INCLUSIVE_IND','AR_ROUNDED_PRICE','USAGE_CYCLE_END']
+              'TAX_INCLUSIVE_IND','AR_ROUNDED_PRICE','USAGE_CYCLE_END','AR_RATE_SHEET']
 RES_DF_FILTER_KEYS = ['BILLER', 'FINANCE_ENTITY','ACCOUNT_NUMBER','CHARGE_NUMBER','SERVICE_TYPE','ACCOUNT_TYPE','CALL_TYPE','CALL_COMP_CALL_TYPE',
-                 'CREDIT_DEBIT_IND','AR_ROUNDED_PRICE','CHG_FILENAME']
+                 'CREDIT_DEBIT_IND','AR_ROUNDED_PRICE','CHG_FILENAME','AR_RATE_SHEET']
 
 ### If charge file specified
 try:
@@ -577,25 +585,31 @@ def getCallType_BHN(row):
 ### CSG Call Type mapping
 def getCallType_CSG(row):
     print("CSG Call type:",row['CALL_TYPE'])
-    if row['CALL_TYPE'] in ['LOCT1','LD1']:
+    if row['CALL_TYPE'] in ['LOCT1', 'LD1']:
         return "INTRA1"
     elif row['CALL_TYPE'] in ['LOCT2', 'LD2', 'LD3', 'LD7']:
         return "INTER1"
-    elif (row['CALL_TYPE'] in ['LD4', 'LD5', 'LD6', 'INT']) | (row['CALL_TYPE'] in ['TERR']):
+    elif (row['CALL_TYPE'] in ['LD4', 'LD5', 'LD6', 'INT']) and (row['CALL_TYPE'] not in ['TERR99']) and \
+            (row['AR_RATE_SHEET'] not in ['R_IOP', 'R_IOP_OUT']):
         return "INT001"
-    elif (row['CALL_TYPE'] in ['OA1', 'OA2', 'OA3', 'OA4','OA5','OA6']) | (row['CALL_TYPE'] in ['OA[1-6]']):
+    elif (re.match(r"(OA[1-6])", row['CALL_TYPE']) != None) and (row['CALL_COMP_CALL_TYPE'] not in ['LD5', 'LD6', 'INT']) and \
+            (row['CALL_COMP_CALL_TYPE'] not in ['TERR99']):
         return "OS0001"
-    elif row['CALL_TYPE'] in ['DA', 'CC']:
+    elif (row['CALL_TYPE'] in ['DA', 'CC']) and (row['CREDIT_DEBIT_IND'] == 'D'):
         return "DA0001"
-    elif (row['CALL_TYPE'] in ['OA8']) & (row['CALL_COMP_CALL_TYPE'] in ['LOC1', 'LOCT1', 'LD1']):
+    elif (row['CALL_TYPE'] in ['OA8']) and (row['CALL_COMP_CALL_TYPE'] in ['LOC1', 'LOCT1', 'LD1']):
         return "IN8001"
-    elif (row['CALL_TYPE'] in ['OA8']) & (row['CALL_COMP_CALL_TYPE'] in ['LOC2','LOCT2','LD2','LD3','LD7']):
+    elif (row['CALL_TYPE'] in ['OA8']) and (row['CALL_COMP_CALL_TYPE'] in ['LOC2', 'LOCT2', 'LD2', 'LD3', 'LD7']):
         return "IN8002"
-    elif (row['CALL_TYPE'] in ['OA8']) & (row['CALL_COMP_CALL_TYPE'] in ['LD4']):
+    elif (row['CALL_TYPE'] in ['OA8']) and (row['CALL_COMP_CALL_TYPE'] in ['LD4']):
         return "IN8003"
-    elif (row['CALL_TYPE'] in ['OA1', 'OA2', 'OA3', 'OA4','OA5','OA6']) & (row['CALL_COMP_CALL_TYPE'] in ['LD5', 'LD6', 'INT', 'TERR[1-99]']):
+    elif (row['CALL_TYPE'] in ['LD4', 'LD5', 'LD6', 'INT']) and (row['CALL_TYPE'] not in ['TERR99']) and \
+            (row['AR_RATE_SHEET'] in ['R_IOP', 'R_IOP_OUT']):
+        return "TNZINT"
+    elif (re.match(r"(OA[1-6])", row['CALL_TYPE'])) and (row['CALL_COMP_CALL_TYPE'] in ['LD5', 'LD6', 'INT']) and \
+            (row['CALL_COMP_CALL_TYPE'] not in ['TERR99']):
         return "OAINT1"
-    elif (row['CALL_TYPE'] in ['DA', 'CC']) & (row['CREDIT_DEBIT_IND'] in ['C']):
+    elif (row['CALL_TYPE'] in ['DA', 'CC']) and (row['CREDIT_DEBIT_IND'] in ['C']):
         return "DACDOM"
     else:
         return "VARA"
@@ -852,7 +866,7 @@ try :
             print("Inside CSG..")
             CSG_df = pd.DataFrame()
             exp_csg_RefCol = ['BILLER', 'ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'ACCOUNT_TYPE', 'CALL_TYPE',
-                              'CALL_COMP_CALL_TYPE', 'AR_ROUNDED_PRICE']
+                              'CALL_COMP_CALL_TYPE', 'AR_ROUNDED_PRICE','AR_RATE_SHEET','CREDIT_DEBIT_IND']
             exp_csg_df = res_df[res_df['BILLER'] == 'CSG']
             exp_csg_df = exp_csg_df.filter(exp_csg_RefCol)
             exp_csg_df['CALL_TYPE'] = exp_csg_df.apply(getCallType_CSG, axis=1)
@@ -875,8 +889,7 @@ try :
                     print("Colmn:", CSG_df.columns)
                     CSG_df['Result'] = CSG_df.apply(compareResults, axis=1)
                     CSG_df = CSG_df[['BILLER','ACCOUNT_NUMBER','CHARGE_NUMBER','Exp_ACCOUNT_TYPE','AccType',
-                                     'Exp_CALL_TYPE','CallType','Exp_AR_ROUNDED_PRICE','Amount','CALL_COMP_CALL_TYPE',
-                                     'FileName','Result']]
+                                     'Exp_CALL_TYPE','CallType','Exp_AR_ROUNDED_PRICE','Amount', 'FileName','Result']]
                 else:
                     CSG_df = exp_csg_df
             except AttributeError:
