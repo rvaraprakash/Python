@@ -852,25 +852,27 @@ res_nyc_df = charge_df[charge_df['BILLER']=='CSG_NYC'].copy()
 nyc_grp = res_nyc_df.groupby(['ACCOUNT_NUMBER', 'CHARGE_NUMBER'], as_index=False)['AR_ROUNDED_PRICE'].sum()
 res_nyc_df = pd.merge(res_nyc_df,nyc_grp, on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
 res_nyc_df.drop('AR_ROUNDED_PRICE_x', axis=1, inplace=True)
-res_nyc_df.drop_duplicates(inplace=True)
+res_nyc_df.drop_duplicates(['ACCOUNT_NUMBER','CHARGE_NUMBER'], inplace=True)
 res_nyc_df.rename(columns={'AR_ROUNDED_PRICE_y':'AR_ROUNDED_PRICE'}, inplace=True)
 res_nyc_df = res_nyc_df[RES_DF_FILTER_KEYS]
 
 new_df = charge_df.groupby(['ACCOUNT_NUMBER', 'CHARGE_NUMBER'], as_index=False)['AR_ROUNDED_PRICE'].sum()
-res_df = pd.merge(charge_df,new_df, on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
-res_df.drop('AR_ROUNDED_PRICE_x', axis=1, inplace=True)
-res_df_tm1 = res_df.copy()
-res_df.drop_duplicates(inplace=True)
-res_df.rename(columns={'AR_ROUNDED_PRICE_y':'AR_ROUNDED_PRICE'}, inplace=True)
+res_grp_df = pd.merge(charge_df,new_df, on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
+res_grp_df.drop('AR_ROUNDED_PRICE_x', axis=1, inplace=True)
+res_grp_df.drop_duplicates(['ACCOUNT_NUMBER','CHARGE_NUMBER'], inplace=True)
+res_grp_df.rename(columns={'AR_ROUNDED_PRICE_y':'AR_ROUNDED_PRICE'}, inplace=True)
+res_df = res_grp_df.copy()
 res_df = res_df[RES_DF_FILTER_KEYS]
+
+### Remove CSG_NYC records as we considering seperately
+res_df = res_df[res_df['BILLER'] != 'CSG_NYC']
+res_df = pd.concat([res_df,res_nyc_df])
 
 filesCount_df = res_df.groupby(['BILLER','CHG_FILENAME']).count()['AR_ROUNDED_PRICE'].astype(int)
 filesCount_df = filesCount_df.to_frame().reset_index()
 filesCount_df.columns = ['BILLER','ChargeFileName', 'Exp_RecordsCount']
 
-### Remove CSG_NYC records as we considering seperately
-res_df = res_df[res_df['BILLER'] != 'CSG_NYC']
-res_df = pd.concat([res_df,res_nyc_df])
+
 
 
 def summaryResult(row):
