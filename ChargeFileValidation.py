@@ -461,21 +461,23 @@ def createFile_ICOMS(row):
         filename = filename + "untaxed"
     filenum=""
     print("Call type: ",row['CALL_TYPE'])
-    if re.findall(r"DA|CC|OA[1-6]", row['CALL_TYPE']):
+    if (row['CALL_TYPE'] in ['DA','CC']) or (re.match(r"(OA[1-6])", row['CALL_TYPE'])):
         filenum=1
-    if re.findall(r"LD4|LD5|LD6|INT|TERR[0-99]", row['CALL_TYPE']):
+    if (row['CALL_TYPE'] in ['LD4','LD5', 'LD6', 'INT']) and (row['CALL_TYPE'] != 'TERR99') and \
+            (row['AR_RATE_SHEET'] not in ['R_IOP','R_IOP_OUT']):
         filenum=2
-    if re.findall(r"LOCT1|LD1", row['CALL_TYPE']):
+    if row['CALL_TYPE'] in ['LOCT1','LD1']:
         filenum=3
-    if re.findall(r"LOCT2|LD2|LD3|LD7", row['CALL_TYPE']):
+    if row['CALL_TYPE'] in ['LOCT2', 'LD2', 'LD3', 'LD7']:
         filenum=4
-    if re.findall(r"LD4|LD5|LD6|INT|TERR[0-99]", row['CALL_TYPE']):
+    if ((row['CALL_TYPE'] in ['LD4','LD5', 'LD6', 'INT']) or (row['CALL_TYPE'] != 'TERR99')) and \
+            (row['AR_RATE_SHEET'] in ['R_IOP', 'R_IOP_OUT']):
         filenum=5
-    if re.findall(r"OA8", row['CALL_TYPE']) and re.findall(r"LOC1|LOCT1|LD1", row['CALL_COMP_CALL_TYPE']):
+    if (row['CALL_TYPE'] in ['OA8']) and (row['CALL_COMP_CALL_TYPE'] in ['LOC1', 'LOCT1', 'LD1']):
         filenum=6
-    if re.findall(r"OA8", row['CALL_TYPE']) and re.findall(r"LOC2|LOCT2|LD2|LD3|LD7", row['CALL_COMP_CALL_TYPE']):
+    if (row['CALL_TYPE'] in ['OA8']) and (row['CALL_COMP_CALL_TYPE'] in ['LOC2', 'LOCT2', 'LD2', 'LD3', 'LD7']):
         filenum=7
-    if re.findall(r"OA8", row['CALL_TYPE']) and re.findall(r"LD4", row['CALL_COMP_CALL_TYPE']):
+    if (row['CALL_TYPE'] in ['OA8']) and (row['CALL_COMP_CALL_TYPE'] in ['LD4']):
         filenum=8
     filename += str(filenum) + ".txt"
     #print (" ----")
@@ -492,11 +494,11 @@ def createFile_NS(row):
         filename = filename + "0001"
 
     if (row['SERVICE_TYPE'] == 'R'):
-        filename = filename + ".RESP"
+        filename = filename + "RESP"
     elif (row['SERVICE_TYPE'] == 'B') or (row['SERVICE_TYPE'] == 'F'):
-        filename = filename + ".NSBCP"
+        filename = filename + "NSBCP"
     elif (row['SERVICE_TYPE'] == 'T'):
-        filename = filename + ".NSPRIP"
+        filename = filename + "NSPRIP"
     #print("Tax Ind:", row['TAX_INCLUSIVE_IND'])
     if (row['TAX_INCLUSIVE_IND'] == 0):
         filename = filename + "taxed"
@@ -504,21 +506,19 @@ def createFile_NS(row):
         filename = filename + "untaxed"
     filenum=""
     #print("Call type: ",row['CALL_TYPE'])
-    if re.findall(r"DA|CC|OA[1-6]", row['CALL_TYPE']):
+    if (row['CALL_TYPE'] in ['DA','CC']) or (re.match(r"(OA[1-6])", row['CALL_TYPE'])):
         filenum=1
-    if re.findall(r"LD4|LD5|LD6|INT|TERR[0-99]", row['CALL_TYPE']):
+    if (row['CALL_TYPE'] in ['LD4','LD5', 'LD6', 'INT']) and (row['CALL_TYPE'] != 'TERR99'):
         filenum=2
-    if re.findall(r"LOCT1|LD1", row['CALL_TYPE']):
+    if row['CALL_TYPE'] in ['LOCT1','LD1']:
         filenum=3
-    if re.findall(r"LOCT2|LD2|LD3|LD7", row['CALL_TYPE']):
+    if row['CALL_TYPE'] in ['LOCT2', 'LD2', 'LD3', 'LD7']:
         filenum=4
-    if re.findall(r"LD4|LD5|LD6|INT|TERR[0-99]", row['CALL_TYPE']):
-        filenum=5
-    if re.findall(r"OA8", row['CALL_TYPE']) and re.findall(r"LOC1|LOCT1|LD1", row['CALL_COMP_CALL_TYPE']):
+    if (row['CALL_TYPE'] in ['OA8']) and (row['CALL_COMP_CALL_TYPE'] in ['LOC1', 'LOCT1', 'LD1']):
         filenum=6
-    if re.findall(r"OA8", row['CALL_TYPE']) and re.findall(r"LOC2|LOCT2|LD2|LD3|LD7", row['CALL_COMP_CALL_TYPE']):
+    if (row['CALL_TYPE'] in ['OA8']) and (row['CALL_COMP_CALL_TYPE'] in ['LOC2', 'LOCT2', 'LD2', 'LD3', 'LD7']):
         filenum=7
-    if re.findall(r"OA8", row['CALL_TYPE']) and re.findall(r"LD4", row['CALL_COMP_CALL_TYPE']):
+    if (row['CALL_TYPE'] in ['OA8']) and (row['CALL_COMP_CALL_TYPE'] in ['LD4']):
         filenum=8
     filename += str(filenum) + ".txt"
     #print(filename)
@@ -615,7 +615,7 @@ def getCallType_CSG(row):
     else:
         return "VARA"
 
-### CSG Call Type mapping
+### CSG_NYC Call Type mapping
 def getCallType_CSG_NYC(row):
     print("CSG_NYC Call type:",row['CALL_TYPE'])
     if row['CALL_TYPE'] in ['LOCT1', 'LOCT2', 'LOCT']:
@@ -761,7 +761,7 @@ if (len(trksumAcc_df)):
     #print(trksumAcc_df)
 
 #### Primsum_Accounts
-primsumAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(TRKSM_DIV) & clean_df['ACCOUNT_TYPE'].isin(['R', 'C'])
+primsumAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(PRISM_DIV) & clean_df['ACCOUNT_TYPE'].isin(['R', 'C'])
                          & clean_df['SERVICE_TYPE'].isin(['B', 'F', 'R'])]
 if (len(primsumAcc_df)):
     print("Primsum_Accounts")
@@ -771,7 +771,7 @@ if (len(primsumAcc_df)):
     primsumAcc_df['CHG_FILENAME'] = primsumAcc_df.apply(createFile_CSG, axis=1)
     primsumAcc_df.drop(['fileTime'], axis=1, inplace=True)
     primsumAcc_df['BILLER'] = "CSG"
-    #print(primsumAcc_df)
+    print("len of primsumAcc_df:", len(primsumAcc_df))
 
 #### PrimdetNYC_Accounts
 primdetAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(['NYC']) & clean_df['ACCOUNT_TYPE'].isin(['R', 'C'])
