@@ -436,7 +436,9 @@ BI_DF = pd.read_excel(BillingInfoFile, sheet_name='Information')
 BHN_Ref_DF = pd.read_excel(BillingInfoFile, sheet_name='BHN_REF')
 
 clean_df = df[df['AR_ROUNDED_PRICE'] > 0]
+
 clean_df.ACCOUNT_NUMBER = clean_df.ACCOUNT_NUMBER.astype(np.int64)
+
 
 
 
@@ -700,8 +702,10 @@ def compareResults(row):
         else:
             return "FAIL"
     if row['BILLER'] == 'NATIONAL':
+        print (row['ACCOUNT_NUMBER'],"Amount:",row['Amount'],"==",row['Exp_AR_ROUNDED_PRICE'])
         if ((row['Amount'] == row['Exp_AR_ROUNDED_PRICE']) and
-            (row['CreditDebitInd'] == row['Exp_CREDIT_DEBIT_IND'])):
+            (row['CreditDebitInd'] == row['Exp_CREDIT_DEBIT_IND']) and
+            (row['FileName'] == row['CHG_FILENAME'])):
             return "PASS"
         else:
             return "FAIL"
@@ -856,10 +860,10 @@ res_nyc_df.drop_duplicates(['ACCOUNT_NUMBER','CHARGE_NUMBER'], inplace=True)
 res_nyc_df.rename(columns={'AR_ROUNDED_PRICE_y':'AR_ROUNDED_PRICE'}, inplace=True)
 res_nyc_df = res_nyc_df[RES_DF_FILTER_KEYS]
 
-new_df = charge_df.groupby(['ACCOUNT_NUMBER', 'CHARGE_NUMBER'], as_index=False)['AR_ROUNDED_PRICE'].sum()
-res_grp_df = pd.merge(charge_df,new_df, on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
+new_df = charge_df.groupby(['ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'CHG_FILENAME'], as_index=False)['AR_ROUNDED_PRICE'].sum()
+res_grp_df = pd.merge(charge_df,new_df, on=['ACCOUNT_NUMBER','CHARGE_NUMBER','CHG_FILENAME'])
 res_grp_df.drop('AR_ROUNDED_PRICE_x', axis=1, inplace=True)
-res_grp_df.drop_duplicates(['ACCOUNT_NUMBER','CHARGE_NUMBER'], inplace=True)
+res_grp_df.drop_duplicates(['ACCOUNT_NUMBER','CHARGE_NUMBER','CHG_FILENAME'], inplace=True)
 res_grp_df.rename(columns={'AR_ROUNDED_PRICE_y':'AR_ROUNDED_PRICE'}, inplace=True)
 res_df = res_grp_df.copy()
 res_df = res_df[RES_DF_FILTER_KEYS]
@@ -934,6 +938,8 @@ try :
             except AttributeError:
                 pass
             if (len(BHN_df) > 1):
+                BHN_df['ACCOUNT_NUMBER'] = BHN_df.ACCOUNT_NUMBER.astype(str)
+                BHN_df['CHARGE_NUMBER'] = BHN_df.CHARGE_NUMBER.astype(str)
                 BHN_df.to_excel(writer, 'BHN', index=False)
 
         #### CSG_NYC
@@ -971,6 +977,8 @@ try :
             except AttributeError:
                 pass
             if (len(CSG_NYC_df) > 1):
+                CSG_NYC_df['ACCOUNT_NUMBER'] = CSG_NYC_df.ACCOUNT_NUMBER.astype(str)
+                CSG_NYC_df['CHARGE_NUMBER'] = CSG_NYC_df.CHARGE_NUMBER.astype(str)
                 CSG_NYC_df.to_excel(writer, 'CSG_NYC', index=False)
 
         #### CSG
@@ -1009,6 +1017,8 @@ try :
             except AttributeError:
                 pass
             if (len(CSG_df) > 1):
+                CSG_df['ACCOUNT_NUMBER'] = CSG_df.ACCOUNT_NUMBER.astype(str)
+                CSG_df['CHARGE_NUMBER'] = CSG_df.CHARGE_NUMBER.astype(str)
                 CSG_df.to_excel(writer, 'CSG', index=False)
 
 
@@ -1016,7 +1026,7 @@ try :
         if biller == 'NATIONAL':
             print("Inside NATIONAL..")
             NATIONAL_df = pd.DataFrame()
-            exp_national_RefCol = ['BILLER', 'FINANCE_ENTITY','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'CREDIT_DEBIT_IND', 'AR_ROUNDED_PRICE']
+            exp_national_RefCol = ['BILLER', 'FINANCE_ENTITY','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'CREDIT_DEBIT_IND', 'CHG_FILENAME','AR_ROUNDED_PRICE']
             exp_national_df = res_df[res_df['BILLER'] == 'NATIONAL']
 
             exp_national_df = exp_national_df.filter(exp_national_RefCol)
@@ -1026,6 +1036,7 @@ try :
             exp_national_df['AR_ROUNDED_PRICE'] = exp_national_df.AR_ROUNDED_PRICE.astype(np.int64)
             exp_national_df.rename(columns={'CREDIT_DEBIT_IND': 'Exp_CREDIT_DEBIT_IND',
                                             'FINANCE_ENTITY': 'Exp_DIVISION_CODE',
+                                            'CALL_TYPE': 'Exp_CALL_TYPE',
                                             'AR_ROUNDED_PRICE': 'Exp_AR_ROUNDED_PRICE'}, inplace=True)
             # exp_national_df.drop('CALL_TYPE',axis=1, inplace=True)
 
@@ -1050,6 +1061,8 @@ try :
             except AttributeError:
                 pass
             if (len(NATIONAL_df) > 1):
+                NATIONAL_df['ACCOUNT_NUMBER'] = NATIONAL_df.ACCOUNT_NUMBER.astype(str)
+                NATIONAL_df['CHARGE_NUMBER'] = NATIONAL_df.CHARGE_NUMBER.astype(str)
                 NATIONAL_df.to_excel(writer, 'NATIONAL', index=False)
 
         ### ICOMS
@@ -1088,6 +1101,8 @@ try :
             except AttributeError:
                 pass
             if (len(ICOMS_df) > 1):
+                ICOMS_df['ACCOUNT_NUMBER'] = ICOMS_df.ACCOUNT_NUMBER.astype(str)
+                ICOMS_df['CHARGE_NUMBER'] = ICOMS_df.CHARGE_NUMBER.astype(str)
                 ICOMS_df.to_excel(writer, 'ICOMS', index=False)
 
 except PermissionError as e:
@@ -1100,7 +1115,11 @@ except PermissionError as e:
 
 
 finally:
+    all_df['ACCOUNT_NUMBER'] = all_df.ACCOUNT_NUMBER.astype(str)
+    all_df['CHARGE_NUMBER'] = all_df.CHARGE_NUMBER.astype(str)
     all_df.to_excel(writer, 'All_Records', index=False)
+    res_df['ACCOUNT_NUMBER'] = res_df.ACCOUNT_NUMBER.astype(str)
+    res_df['CHARGE_NUMBER'] = res_df.CHARGE_NUMBER.astype(str)
     res_df.to_excel(writer, 'Aggr_Records', index=False)
     writer.save()
 
