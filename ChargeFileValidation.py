@@ -12,14 +12,24 @@ import pandas as pd
 from datetime import datetime
 import re
 import xlrd
-from openpyxl import Workbook
+#from openpyxl import Workbook
 from os import listdir
 import xlsxwriter
 from os.path import isfile, join
 import os
+import sys
 
-confFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\Vara.txt"
-#confFile="Vara.txt"
+def getConfigFile():
+    global confFile
+    prompt = '> '
+    #confFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\Vara.txt"
+    #confFile="ChargeFileConf.txt"
+    print ("Enter config file:")
+    confFile = input(prompt)
+
+#confFile="C:\Vara\AM&R\scripts\Ref_Scripts\ChargeFileGen\Vara.txt"
+confFile="C:\Vara\AM&R\scripts\QA_Run\Vara.txt"
+#getConfigFile()
 
 OUTPUT_FILE = "ChargeFileValidation.xlsx" ### Default value
 
@@ -27,9 +37,19 @@ try:
     fh = open(confFile)
     lines = [line for line in fh.readlines() if line.strip('\n')]
     fh.close()
+
 except FileNotFoundError:
     print(confFile, ": File Not found, please check and try again")
-    exit (-1)
+
+except:
+    print("Unexpected error:", sys.exc_info()[0])
+    raise
+
+# finally:
+#     print("Press Enter to close Window")
+#     input()
+#     fh.close()
+#     exit (-1)
 
 #### Read Configuration file
 for curline in lines:
@@ -40,6 +60,7 @@ for curline in lines:
         #print("config line:" + curline)
         res = curline.split('=')
         if (res[0].strip() == 'BL_RATED'):
+            print("File:",res[1])
             BL_RATED_filename = res[1].strip('\n')
             BL_RATED_filename = BL_RATED_filename.strip('"')
             BL_RATED_filename = BL_RATED_filename.strip()
@@ -94,12 +115,14 @@ PRIMDEV_DIV = ['NYC']
 
 ###Key fields
 CHRG_KEYS = ['BILLER','FINANCE_ENTITY','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'AR_RATE_SHEET', 'SERVICE_TYPE','ACCOUNT_TYPE', 'AR_ROUNDED_PRICE', 'CALL_TYPE',
-             'CALL_COMP_CALL_TYPE','CREDIT_DEBIT_IND','CHG_FILENAME']
+             'CALL_COMP_CALL_TYPE','CREDIT_DEBIT_IND','CHG_FILENAME', 'DIVISION_CODE', 'SERVICE_CODE']
 ACC_SERV_KEYS = ['ACCOUNT_TYPE', 'SERVICE_TYPE']
 ICOMS_KEYS = ['FINANCE_ENTITY', 'CREDIT_DEBIT_IND','ACCOUNT_NUMBER','CHARGE_NUMBER','ACCOUNT_TYPE', 'SERVICE_TYPE', 'CALL_TYPE', 'CALL_COMP_CALL_TYPE',
-              'TAX_INCLUSIVE_IND','AR_ROUNDED_PRICE','USAGE_CYCLE_END','AR_RATE_SHEET']
+              'TAX_INCLUSIVE_IND','AR_ROUNDED_PRICE','USAGE_CYCLE_END','AR_RATE_SHEET', 'DIVISION_CODE', 'SERVICE_CODE']
 RES_DF_FILTER_KEYS = ['BILLER', 'FINANCE_ENTITY','ACCOUNT_NUMBER','CHARGE_NUMBER','SERVICE_TYPE','ACCOUNT_TYPE','CALL_TYPE','CALL_COMP_CALL_TYPE',
-                 'CREDIT_DEBIT_IND','AR_ROUNDED_PRICE','CHG_FILENAME','AR_RATE_SHEET']
+                 'CREDIT_DEBIT_IND','AR_ROUNDED_PRICE','CHG_FILENAME','AR_RATE_SHEET', 'DIVISION_CODE', 'SERVICE_CODE']
+NYC_RES_DF_FILTER_KEYS = ['BILLER', 'FINANCE_ENTITY','ACCOUNT_NUMBER','CHARGE_NUMBER','SERVICE_TYPE','ACCOUNT_TYPE','CALL_TYPE','CALL_COMP_CALL_TYPE',
+                 'CREDIT_DEBIT_IND','AR_ROUNDED_PRICE','CHG_FILENAME','AR_RATE_SHEET', 'DIVISION_CODE', 'SERVICE_CODE']
 
 ### If charge file specified
 try:
@@ -115,7 +138,7 @@ except NameError:
 
 #### Functions to read content of charge files
 def addToMap(file):
-    print("Reading file:", file)
+    #print("Reading file:", file)
     if file[-3:] == 'job':
         print("Skipping file:", file)
     else:
@@ -207,7 +230,7 @@ def parseRecords_ICOMS(file):
     tmp1_df = pd.DataFrame.from_dict(icoms_dict)
     a_ICOMS_df = pd.concat([a_ICOMS_df, tmp1_df], sort=False)
     #print("a_ICOMS_df:", a_ICOMS_df)
-    print("a_ICOMS_df.AccountNum:", a_ICOMS_df['AccountNum'])
+    #print("a_ICOMS_df.AccountNum:", a_ICOMS_df['AccountNum'])
 
 
 def parseRecords_NATIONAL(file):
@@ -250,7 +273,7 @@ def parseRecords_NATIONAL(file):
     tmp_df = pd.DataFrame.from_dict(national_dict)
     a_NATIONAL_df = pd.concat([a_NATIONAL_df, tmp_df], sort=False)
     #print("a_NATIONAL_df:", a_NATIONAL_df)
-    print("a_NATIONAL_df.AccountNum:", a_NATIONAL_df['AccountNum'])
+    #print("a_NATIONAL_df.AccountNum:", a_NATIONAL_df['AccountNum'])
 
 def parseRecords_CSG(file):
     key = os.path.basename(file)
@@ -354,7 +377,7 @@ def parseFile_BHN(file):
     a_chargeFilesRecCntDict[key]=recCount
 
 def parseFile_ICOMS(file):
-    print ("Parsing ICOMS file:" + file)
+    #print ("Parsing ICOMS file:" + file)
     addToMap(file)
     parseRecords_ICOMS(file)
     key = os.path.basename(file)
@@ -364,7 +387,7 @@ def parseFile_ICOMS(file):
     a_chargeFilesRecCntDict[key] = recCount
 
 def parseFile_NATIONAL(file):
-    print ("Parsing NATIONAL file:" + file)
+    #print ("Parsing NATIONAL file:" + file)
     addToMap(file)
     parseRecords_NATIONAL(file)
     key = os.path.basename(file)
@@ -462,7 +485,7 @@ def createFile_ICOMS(row):
     else:
         filename = filename + "untaxed"
     filenum=""
-    print("Call type: ",row['CALL_TYPE'])
+    #print("Call type: ",row['CALL_TYPE'])
     if (row['CALL_TYPE'] in ['DA','CC']) or (re.match(r"(OA[1-6])", row['CALL_TYPE'])):
         filenum=1
     if (row['CALL_TYPE'] in ['LD4','LD5', 'LD6', 'INT']) and (row['CALL_TYPE'] != 'TERR99') and \
@@ -587,7 +610,7 @@ def getCallType_BHN(row):
 
 ### CSG Call Type mapping
 def getCallType_CSG(row):
-    print("CSG Call type:",row['CALL_TYPE'])
+    #print("CSG Call type:",row['CALL_TYPE'])
     if row['CALL_TYPE'] in ['LOCT1', 'LD1']:
         return "INTRA1"
     elif row['CALL_TYPE'] in ['LOCT2', 'LD2', 'LD3', 'LD7']:
@@ -619,7 +642,7 @@ def getCallType_CSG(row):
 
 ### CSG_NYC Call Type mapping
 def getCallType_CSG_NYC(row):
-    print("CSG_NYC Call type:",row['CALL_TYPE'])
+    #print("CSG_NYC Call type:",row['CALL_TYPE'])
     if row['CALL_TYPE'] in ['LOCT1', 'LOCT2', 'LOCT']:
         return "LOCT"
     elif row['CALL_TYPE'] in ['LD2', 'LD7']:
@@ -691,7 +714,10 @@ def compareResults(row):
             return "FAIL"
     if row['BILLER'] == 'CSG_NYC':
         if ((row['Amount']==row['Exp_AR_ROUNDED_PRICE']) and
-            (row['CallType']==row['Exp_CALL_TYPE'])):
+            (row['CallType']==row['Exp_CALL_TYPE']) and
+                (row['Division']==row['Exp_DIVISION_CODE']) and
+                (row['ServiceCode']==row['Exp_SERVICE_CODE']) and
+                (row['Account_Flag']==row['Exp_ACCOUNT_FLAG'])):
             return "PASS"
         else:
             return "FAIL"
@@ -702,10 +728,9 @@ def compareResults(row):
         else:
             return "FAIL"
     if row['BILLER'] == 'NATIONAL':
-        print (row['ACCOUNT_NUMBER'],"Amount:",row['Amount'],"==",row['Exp_AR_ROUNDED_PRICE'])
+        #print (row['ACCOUNT_NUMBER'],"Amount:",row['Amount'],"==",row['Exp_AR_ROUNDED_PRICE'])
         if ((row['Amount'] == row['Exp_AR_ROUNDED_PRICE']) and
-            (row['CreditDebitInd'] == row['Exp_CREDIT_DEBIT_IND']) and
-            (row['FileName'] == row['CHG_FILENAME'])):
+            (row['CreditDebitInd'] == row['Exp_CREDIT_DEBIT_IND'])):
             return "PASS"
         else:
             return "FAIL"
@@ -728,7 +753,7 @@ if (len(priAcc_df)):
 resAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(RES_DIV) & clean_df['ACCOUNT_TYPE'].isin(['R'])
                      & clean_df['SERVICE_TYPE'].isin(['R'])]
 if (len(resAcc_df)):
-    print("RES Accounts")
+    #print("RES Accounts")
     resAcc_df = resAcc_df.filter(ICOMS_KEYS)
     resAcc_df['fileTime'] = pd.to_datetime(resAcc_df['USAGE_CYCLE_END'])
     resAcc_df['fileTime'] = resAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
@@ -741,7 +766,7 @@ if (len(resAcc_df)):
 bcpAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(BCP_DIV) & clean_df['ACCOUNT_TYPE'].isin(['C', 'F'])
                      & clean_df['SERVICE_TYPE'].isin(['B', 'F'])]
 if (len(bcpAcc_df)):
-    print("BCP Accounts")
+    #print("BCP Accounts")
     bcpAcc_df = bcpAcc_df.filter(ICOMS_KEYS)
     bcpAcc_df['fileTime'] = pd.to_datetime(bcpAcc_df['USAGE_CYCLE_END'])
     bcpAcc_df['fileTime'] = bcpAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
@@ -755,7 +780,7 @@ if (len(bcpAcc_df)):
 trksumAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(TRKSM_DIV) & clean_df['ACCOUNT_TYPE'].isin(['C', 'T'])
                         & clean_df['SERVICE_TYPE'].isin(['T'])]
 if (len(trksumAcc_df)):
-    print("Trunksum_Accounts")
+    #print("Trunksum_Accounts")
     trksumAcc_df = trksumAcc_df.filter(ICOMS_KEYS)
     trksumAcc_df['fileTime'] = pd.to_datetime(trksumAcc_df['USAGE_CYCLE_END'])
     trksumAcc_df['fileTime'] = trksumAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
@@ -768,21 +793,21 @@ if (len(trksumAcc_df)):
 primsumAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(PRISM_DIV) & clean_df['ACCOUNT_TYPE'].isin(['R', 'C'])
                          & clean_df['SERVICE_TYPE'].isin(['B', 'F', 'R'])]
 if (len(primsumAcc_df)):
-    print("Primsum_Accounts")
+    #print("Primsum_Accounts")
     primsumAcc_df = primsumAcc_df.filter(ICOMS_KEYS)
     primsumAcc_df['fileTime'] = pd.to_datetime(primsumAcc_df['USAGE_CYCLE_END'])
     primsumAcc_df['fileTime'] = primsumAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
     primsumAcc_df['CHG_FILENAME'] = primsumAcc_df.apply(createFile_CSG, axis=1)
     primsumAcc_df.drop(['fileTime'], axis=1, inplace=True)
     primsumAcc_df['BILLER'] = "CSG"
-    print("len of primsumAcc_df:", len(primsumAcc_df))
+    #print("len of primsumAcc_df:", len(primsumAcc_df))
 
 #### PrimdetNYC_Accounts
 primdetAcc_df = clean_df[clean_df['DIVISION_CODE'].isin(['NYC']) & clean_df['ACCOUNT_TYPE'].isin(['R', 'C'])
                          & clean_df['SERVICE_TYPE'].isin(['B', 'F', 'R'])]
-print("NYC Acc type", primdetAcc_df['ACCOUNT_TYPE'], "->",primdetAcc_df['SERVICE_TYPE'])
+#print("NYC Acc type", primdetAcc_df['ACCOUNT_TYPE'], "->",primdetAcc_df['SERVICE_TYPE'])
 if (len(primdetAcc_df)):
-    print("PrimdetNYC_Accounts")
+    #print("PrimdetNYC_Accounts")
     primdetAcc_df = primdetAcc_df.filter(ICOMS_KEYS)
     primdetAcc_df['fileTime'] = pd.to_datetime(primdetAcc_df['USAGE_CYCLE_END'])
     primdetAcc_df['fileTime'] = primdetAcc_df.fileTime.apply(lambda x: datetime.strftime(x, '%Y%m%d'))
@@ -853,12 +878,12 @@ all_df = all_df.sort_values(['CHG_FILENAME'])
 charge_df = all_df.filter(CHRG_KEYS).copy()
 #### Work seperately for CSG_NYC as group sum is not working correct
 res_nyc_df = charge_df[charge_df['BILLER']=='CSG_NYC'].copy()
-nyc_grp = res_nyc_df.groupby(['ACCOUNT_NUMBER', 'CHARGE_NUMBER'], as_index=False)['AR_ROUNDED_PRICE'].sum()
-res_nyc_df = pd.merge(res_nyc_df,nyc_grp, on=['ACCOUNT_NUMBER','CHARGE_NUMBER'])
+nyc_grp = res_nyc_df.groupby(['ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'CALL_TYPE'], as_index=False)['AR_ROUNDED_PRICE'].sum()
+res_nyc_df = pd.merge(res_nyc_df,nyc_grp, on=['ACCOUNT_NUMBER','CHARGE_NUMBER','CALL_TYPE'])
 res_nyc_df.drop('AR_ROUNDED_PRICE_x', axis=1, inplace=True)
 res_nyc_df.drop_duplicates(['ACCOUNT_NUMBER','CHARGE_NUMBER'], inplace=True)
 res_nyc_df.rename(columns={'AR_ROUNDED_PRICE_y':'AR_ROUNDED_PRICE'}, inplace=True)
-res_nyc_df = res_nyc_df[RES_DF_FILTER_KEYS]
+res_nyc_df = res_nyc_df[NYC_RES_DF_FILTER_KEYS]
 
 new_df = charge_df.groupby(['ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'CHG_FILENAME'], as_index=False)['AR_ROUNDED_PRICE'].sum()
 res_grp_df = pd.merge(charge_df,new_df, on=['ACCOUNT_NUMBER','CHARGE_NUMBER','CHG_FILENAME'])
@@ -904,9 +929,9 @@ try :
     billerList = res_df['BILLER'].unique()
     #print("biller List", billerList)
     for biller in billerList:
-        print("Working on biller:",biller)
+        #print("Working on biller:",biller)
         if biller == 'BHN':
-            print("Inside BHN..")
+            #print("Inside BHN..")
             BHN_df = pd.DataFrame()
             exp_bhn_RefCol = ['BILLER', 'ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'SERVICE_TYPE', 'ACCOUNT_TYPE', 'CALL_TYPE',
                               'CREDIT_DEBIT_IND', 'CALL_COMP_CALL_TYPE','AR_ROUNDED_PRICE']
@@ -931,8 +956,13 @@ try :
                     #BHN_df = pd.merge(a_BHN_df, exp_bhn_df, how='outer', on=['ACCOUNT_NUMBER', 'CHARGE_NUMBER'])
                     BHN_df = pd.merge(exp_bhn_df,a_BHN_df, how='outer', on=['ACCOUNT_NUMBER', 'CHARGE_NUMBER'])
                     BHN_df['Result'] = BHN_df.apply(compareResults, axis=1)
-                    BHN_df = BHN_df[['BILLER','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'Exp_AR_ROUNDED_PRICE','Amount',
-                                     'Exp_CALL_TYPE','CallType','Exp_SERVICE_TYPE', 'Service', 'FileName','Result']]
+                    BHN_df = BHN_df[['BILLER', 'ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'Exp_AR_ROUNDED_PRICE', 'Amount',
+                                     'Exp_CALL_TYPE', 'CallType', 'Exp_SERVICE_TYPE', 'Service', 'Result']]
+
+                    BHN_df.rename(columns={'Amount': 'Actual_AMOUNT',
+                                           'CallType': 'Actual_CALL_TYPE',
+                                           'Service': 'Actual_SERVICE_TYPE',
+                                           'Exp_AR_ROUNDED_PRICE': 'Exp_AMOUNT'}, inplace=True)
                 else:
                     BHN_df = exp_bhn_df
             except AttributeError:
@@ -944,18 +974,23 @@ try :
 
         #### CSG_NYC
         if biller == 'CSG_NYC':
-            print("Inside CSG_NYC..")
+            #print("Inside CSG_NYC..")
             CSG_NYC_df = pd.DataFrame()
             exp_csg_nyc_RefCol = ['BILLER', 'ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'ACCOUNT_TYPE', 'CALL_TYPE',
-                              'CALL_COMP_CALL_TYPE', 'AR_ROUNDED_PRICE','AR_RATE_SHEET','CREDIT_DEBIT_IND']
+                                  'CALL_COMP_CALL_TYPE', 'AR_ROUNDED_PRICE', 'AR_RATE_SHEET', 'CREDIT_DEBIT_IND',
+                                  'CHG_FILENAME', 'FINANCE_ENTITY', 'SERVICE_CODE']
             exp_csg_nyc_df = res_nyc_df[res_nyc_df['BILLER'] == 'CSG_NYC']
             exp_csg_nyc_df = exp_csg_nyc_df.filter(exp_csg_nyc_RefCol)
             exp_csg_nyc_df['CALL_TYPE'] = exp_csg_nyc_df.apply(getCallType_CSG_NYC, axis=1)
             exp_csg_nyc_df['AR_ROUNDED_PRICE'] = exp_csg_nyc_df['AR_ROUNDED_PRICE'].\
                apply(lambda x: (str(format(x, '.2f')).split('.')[0]+ "." + str(format(x,'.2f')).split('.')[1]))
             exp_csg_nyc_df.rename(columns={'ACCOUNT_TYPE': 'Exp_ACCOUNT_TYPE',
-                                       'CALL_TYPE': 'Exp_CALL_TYPE',
-                                       'AR_ROUNDED_PRICE': 'Exp_AR_ROUNDED_PRICE'}, inplace=True)
+                                           'CALL_TYPE': 'Exp_CALL_TYPE',
+                                           'ACCOUNT_TYPE': 'Exp_ACCOUNT_FLAG',
+                                           'CHG_FILENAME': 'FILE_NAME',
+                                           'FINANCE_ENTITY': 'Exp_DIVISION_CODE',
+                                           'SERVICE_CODE': 'Exp_SERVICE_CODE',
+                                           'AR_ROUNDED_PRICE': 'Exp_AR_ROUNDED_PRICE'}, inplace=True)
             # exp_bhn_df.drop('CALL_TYPE',axis=1, inplace=True)
 
             try:
@@ -963,15 +998,24 @@ try :
                     a_NYC_df['AccountNum'] = a_NYC_df.AccountNum.astype(np.int64)
                     a_NYC_df['ChargeNumber'] = a_NYC_df.ChargeNumber.astype(np.int64)
                     a_NYC_df.rename(columns={'AccountNum': 'ACCOUNT_NUMBER',
+                                             'FileName': 'FILE_NAME',
                                              'ChargeNumber': 'CHARGE_NUMBER'}, inplace=True)
 
                     #print("NYC exp Colmn:", a_NYC_df.columns)
-                    CSG_NYC_df = pd.merge(exp_csg_nyc_df,a_NYC_df, how='outer', on=['ACCOUNT_NUMBER', 'CHARGE_NUMBER'])
-                    print("Colmn:", CSG_NYC_df.columns)
+                    CSG_NYC_df = pd.merge(exp_csg_nyc_df,a_NYC_df, how='outer', on=['ACCOUNT_NUMBER', 'CHARGE_NUMBER','FILE_NAME'])
+                    #print("Colmn:", CSG_NYC_df.columns)
                     CSG_NYC_df['Result'] = CSG_NYC_df.apply(compareResults, axis=1)
                     CSG_NYC_df = CSG_NYC_df[['BILLER','ACCOUNT_NUMBER','CHARGE_NUMBER','Exp_CALL_TYPE','CallType',
-                                             'Exp_AR_ROUNDED_PRICE','Amount', 'Division',
-                                             'Account_Flag','ServiceCode','FileName','Result']]
+                                             'Exp_AR_ROUNDED_PRICE','Amount', 'Exp_DIVISION_CODE', 'Division',
+                                             'Exp_ACCOUNT_FLAG','Account_Flag', 'Exp_SERVICE_CODE','ServiceCode',
+                                             'FILE_NAME','Result']]
+                    CSG_NYC_df.rename(columns={'Amount': 'Actual_AMOUNT',
+                                               'CallType': 'Actual_CALL_TYPE',
+                                               'Exp_DIVISION_CODE': 'Exp_DIVISION',
+                                               'Division': 'Actual_DIVISION',
+                                               'ServiceCode': 'Actual_SERVICE_CODE',
+                                               'Account_Flag': 'Actual_ACCOUNT_FLAG',
+                                               'Exp_AR_ROUNDED_PRICE': 'Exp_AMOUNT'}, inplace=True)
                 else:
                     CSG_NYC_df = exp_csg_nyc_df
             except AttributeError:
@@ -983,10 +1027,10 @@ try :
 
         #### CSG
         if biller == 'CSG':
-            print("Inside CSG..")
+            #print("Inside CSG..")
             CSG_df = pd.DataFrame()
             exp_csg_RefCol = ['BILLER', 'ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'ACCOUNT_TYPE', 'CALL_TYPE',
-                              'CALL_COMP_CALL_TYPE', 'AR_ROUNDED_PRICE', 'AR_RATE_SHEET', 'CREDIT_DEBIT_IND']
+                              'CALL_COMP_CALL_TYPE', 'AR_ROUNDED_PRICE', 'AR_RATE_SHEET', 'CREDIT_DEBIT_IND', 'CHG_FILENAME']
             exp_csg_df = res_df[res_df['BILLER'] == 'CSG']
             exp_csg_df = exp_csg_df.filter(exp_csg_RefCol)
             exp_csg_df['CALL_TYPE'] = exp_csg_df.apply(getCallType_CSG, axis=1)
@@ -995,6 +1039,7 @@ try :
                 lambda x: (str(format(x, '.2f')).split('.')[0] + str(format(x, '.2f')).split('.')[1]).zfill(7))
             exp_csg_df.rename(columns={'ACCOUNT_TYPE': 'Exp_ACCOUNT_TYPE',
                                        'CALL_TYPE': 'Exp_CALL_TYPE',
+                                       'CHG_FILENAME': 'FILE_NAME',
                                        'AR_ROUNDED_PRICE': 'Exp_AR_ROUNDED_PRICE'}, inplace=True)
             # exp_bhn_df.drop('CALL_TYPE',axis=1, inplace=True)
 
@@ -1003,15 +1048,20 @@ try :
                     a_CSG_df['AccountNum'] = a_CSG_df.AccountNum.astype(np.int64)
                     a_CSG_df['ChargeNumber'] = a_CSG_df.ChargeNumber.astype(np.int64)
                     a_CSG_df.rename(columns={'AccountNum': 'ACCOUNT_NUMBER',
+                                             'FileName': 'FILE_NAME',
                                              'ChargeNumber': 'CHARGE_NUMBER'}, inplace=True)
 
                     # print("Colmn:", exp_csg_df.columns)
-                    CSG_df = pd.merge(exp_csg_df, a_CSG_df, how='outer', on=['ACCOUNT_NUMBER', 'CHARGE_NUMBER'])
-                    print("Colmn:", CSG_df.columns)
+                    CSG_df = pd.merge(exp_csg_df, a_CSG_df, how='outer', on=['ACCOUNT_NUMBER', 'CHARGE_NUMBER','FILE_NAME'])
+                    #print("Colmn:", CSG_df.columns)
                     CSG_df['Result'] = CSG_df.apply(compareResults, axis=1)
                     CSG_df = CSG_df[['BILLER', 'ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'Exp_ACCOUNT_TYPE', 'AccType',
-                                     'Exp_CALL_TYPE', 'CallType', 'Exp_AR_ROUNDED_PRICE', 'Amount', 'FileName',
+                                     'Exp_CALL_TYPE', 'CallType', 'Exp_AR_ROUNDED_PRICE', 'Amount', 'FILE_NAME',
                                      'Result']]
+                    CSG_df.rename(columns={'Amount': 'Actual_AMOUNT',
+                                               'AccType': 'Actual_ACCOUNT_TYPE',
+                                               'CallType': 'Actual_ALL_TYPE',
+                                               'Exp_AR_ROUNDED_PRICE': 'Exp_AMOUNT'}, inplace=True)
                 else:
                     CSG_df = exp_csg_df
             except AttributeError:
@@ -1024,7 +1074,7 @@ try :
 
         ### National
         if biller == 'NATIONAL':
-            print("Inside NATIONAL..")
+            #print("Inside NATIONAL..")
             NATIONAL_df = pd.DataFrame()
             exp_national_RefCol = ['BILLER', 'FINANCE_ENTITY','ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'CREDIT_DEBIT_IND', 'CHG_FILENAME','AR_ROUNDED_PRICE']
             exp_national_df = res_df[res_df['BILLER'] == 'NATIONAL']
@@ -1037,25 +1087,32 @@ try :
             exp_national_df.rename(columns={'CREDIT_DEBIT_IND': 'Exp_CREDIT_DEBIT_IND',
                                             'FINANCE_ENTITY': 'Exp_DIVISION_CODE',
                                             'CALL_TYPE': 'Exp_CALL_TYPE',
+                                            'CHG_FILENAME': 'FILE_NAME',
                                             'AR_ROUNDED_PRICE': 'Exp_AR_ROUNDED_PRICE'}, inplace=True)
             # exp_national_df.drop('CALL_TYPE',axis=1, inplace=True)
 
             try:
                 if a_NATIONAL_df.empty != True:
-                    print("National AccountNum:", a_NATIONAL_df['AccountNum'])
+                    #print("National AccountNum:", a_NATIONAL_df['AccountNum'])
                     a_NATIONAL_df['AccountNum'] = a_NATIONAL_df.AccountNum.astype(np.int64)
                     a_NATIONAL_df['ChargeNumber'] = a_NATIONAL_df.ChargeNumber.astype(np.int64)
                     a_NATIONAL_df.rename(columns={'AccountNum': 'ACCOUNT_NUMBER',
-                                               'ChargeNumber': 'CHARGE_NUMBER'}, inplace=True)
+                                                  'FileName': 'FILE_NAME',
+                                                  'ChargeNumber': 'CHARGE_NUMBER'}, inplace=True)
 
-                    print("Amount:", a_NATIONAL_df['Amount'])
+                    #print("Amount:", a_NATIONAL_df['Amount'])
                     a_NATIONAL_df['Amount'] = a_NATIONAL_df.Amount.astype(np.int64)
-                    print("Colmn:", a_NATIONAL_df.columns)
-                    NATIONAL_df = pd.merge(exp_national_df, a_NATIONAL_df, how='outer', on=['ACCOUNT_NUMBER', 'CHARGE_NUMBER'])
+                    #print("Colmn:", a_NATIONAL_df.columns)
+                    NATIONAL_df = pd.merge(exp_national_df, a_NATIONAL_df, how='outer', on=['ACCOUNT_NUMBER', 'CHARGE_NUMBER','FILE_NAME'])
                     NATIONAL_df['Result'] = NATIONAL_df.apply(compareResults, axis=1)
-                    print("NATIONAL_df Colmn:", NATIONAL_df.columns)
+                    #print("NATIONAL_df Colmn:", NATIONAL_df.columns)
                     NATIONAL_df = NATIONAL_df[['BILLER', 'ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'Exp_DIVISION_CODE', 'DivisionCode', 'Exp_CREDIT_DEBIT_IND', 'CreditDebitInd',
-                         'Exp_AR_ROUNDED_PRICE', 'Amount', 'FileName', 'Result']]
+                         'Exp_AR_ROUNDED_PRICE', 'Amount', 'FILE_NAME', 'Result']]
+
+                    NATIONAL_df.rename(columns={'Amount': 'Actual_AMOUNT',
+                                               'DivisionCode': 'Actual_DIVISION_CODE',
+                                               'CreditDebitInd': 'Actual_CREDIT_DEBIT_IND',
+                                               'Exp_AR_ROUNDED_PRICE': 'Exp_AMOUNT'}, inplace=True)
                 else:
                     NATIONAL_df = exp_national_df
             except AttributeError:
@@ -1067,9 +1124,9 @@ try :
 
         ### ICOMS
         if biller == 'ICOMS':
-            print("Inside ICOMS..")
+            #print("Inside ICOMS..")
             ICOMS_df = pd.DataFrame()
-            exp_icoms_RefCol = ['BILLER', 'ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'CREDIT_DEBIT_IND', 'AR_ROUNDED_PRICE']
+            exp_icoms_RefCol = ['BILLER', 'ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'CHG_FILENAME','CREDIT_DEBIT_IND', 'AR_ROUNDED_PRICE']
             exp_icoms_df = res_df[res_df['BILLER'] == 'ICOMS']
 
             exp_icoms_df = exp_icoms_df.filter(exp_icoms_RefCol)
@@ -1078,24 +1135,29 @@ try :
                apply(lambda x: (str(format(x, '.2f')).split('.')[0]+str(format(x,'.2f')).split('.')[1]))
             exp_icoms_df['AR_ROUNDED_PRICE'] = exp_icoms_df.AR_ROUNDED_PRICE.astype(np.int64)
             exp_icoms_df.rename(columns={'CREDIT_DEBIT_IND': 'Exp_CREDIT_DEBIT_IND',
-                                       'AR_ROUNDED_PRICE': 'Exp_AR_ROUNDED_PRICE'}, inplace=True)
+                                         'CHG_FILENAME': 'FILE_NAME',
+                                         'AR_ROUNDED_PRICE': 'Exp_AR_ROUNDED_PRICE'}, inplace=True)
             # exp_bhn_df.drop('CALL_TYPE',axis=1, inplace=True)
 
             try:
                 if a_ICOMS_df.empty != True:
-                    print("ICOMS AccountNum:", a_ICOMS_df['AccountNum'])
+                    #print("ICOMS AccountNum:", a_ICOMS_df['AccountNum'])
                     a_ICOMS_df['AccountNum'] = a_ICOMS_df.AccountNum.astype(np.int64)
                     a_ICOMS_df['ChargeNumber'] = a_ICOMS_df.ChargeNumber.astype(np.int64)
                     a_ICOMS_df.rename(columns={'AccountNum': 'ACCOUNT_NUMBER',
-                                             'ChargeNumber': 'CHARGE_NUMBER'}, inplace=True)
+                                               'FileName': 'FILE_NAME',
+                                               'ChargeNumber': 'CHARGE_NUMBER'}, inplace=True)
 
-                    print("Amount:", a_ICOMS_df['Amount'])
+                    #print("Amount:", a_ICOMS_df['Amount'])
                     a_ICOMS_df['Amount'] = a_ICOMS_df.Amount.astype(np.int64)
-                    # print("Colmn:", exp_csg_df.columns)
-                    ICOMS_df = pd.merge(exp_icoms_df, a_ICOMS_df, how='outer', on=['ACCOUNT_NUMBER', 'CHARGE_NUMBER'])
+                    ICOMS_df = pd.merge(exp_icoms_df, a_ICOMS_df, how='outer', on=['ACCOUNT_NUMBER', 'CHARGE_NUMBER', 'FILE_NAME'])
                     ICOMS_df['Result'] = ICOMS_df.apply(compareResults, axis=1)
                     ICOMS_df = ICOMS_df[['BILLER','ACCOUNT_NUMBER','CHARGE_NUMBER','Exp_CREDIT_DEBIT_IND','CreditDebitInd',
-                                         'Exp_AR_ROUNDED_PRICE','Amount','FileName','Result']]
+                                         'Exp_AR_ROUNDED_PRICE','Amount','FILE_NAME','Result']]
+
+                    ICOMS_df.rename(columns={'Amount': 'Actual_AMOUNT',
+                                               'CreditDebitInd': 'Actual_CREDIT_DEBIT_IND',
+                                               'Exp_AR_ROUNDED_PRICE': 'Exp_AMOUNT'}, inplace=True)
                 else:
                     ICOMS_df = exp_icoms_df
             except AttributeError:
@@ -1110,8 +1172,9 @@ except PermissionError as e:
     print("Please close file:'" + os.path.basename(OUTPUT_FILE) + "' and try again")
     exit(-1)
 
-#except Exception as e:
- #   print("\nERROR:", e)
+except:
+    print("Unexpected error:", sys.exc_info()[0])
+    raise
 
 
 finally:
@@ -1124,3 +1187,4 @@ finally:
     writer.save()
 
 print("\nOutputfile:" + OUTPUT_FILE)
+#input()
