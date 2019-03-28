@@ -43,3 +43,22 @@ for j in zip(dict1.values(),dict2.values())}
 gives:
 
 {1: [‘a’,’d’], 2: [‘b’, ‘e’],3:[‘c’]}·
+
+
+
+
+#### Highlight color
+
+df = pd.DataFrame({'Val1':['PASS','FAIL','PASS'], 'Col2':['PASS','PASS','FAIL']})
+
+def color_red(val):
+    color = 'red' if val == 'FAIL' else 'black'
+    return 'color: %s' % color
+ 
+def highlight_red(row):
+    return ['background-color: red' if v == 'FAIL' else 'background-color: green' for v in row]
+  
+ df.style.applymap(color_red)
+
+
+df.style.apply(highlight_red, subset=pd.IndexSlice[:, ['Val1']])
