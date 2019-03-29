@@ -62,3 +62,9 @@ def highlight_red(row):
 
 
 df.style.apply(highlight_red, subset=pd.IndexSlice[:, ['Val1']])
+
+
+### Fixing pyinstaller issue when we use pandas.style 
+#1 go C:\Users\V775456\AppData\Local\Programs\Python\Python37-32\Lib\site-packages\pandas\io\formats
+#2 Edit file style.py to replace "template = env.get_template("html.tpl")" with template = env.from_string("html.tpl")
+
